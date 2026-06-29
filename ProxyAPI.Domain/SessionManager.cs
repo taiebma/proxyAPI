@@ -1,34 +1,36 @@
 
-using System.Collections.Concurrent;
+namespace ProxyAPI.Domain;
 using ProxyAPI.Domain.Entities;
+using ProxyAPI.Domain.Interfaces;
+using ProxyAPI.Infrastructure.Interfaces;
 
-public class MemoryAuthenticationSessions : IMemoryAuthenticationSessions
+public class SessionManager : ISessionManager
 {
-    private readonly ConcurrentDictionary<string, AuthenticationSession> _sessions;
+    private readonly ISessionStorage _sessionStorage;
 
-    public MemoryAuthenticationSessions()
+    public SessionManager(ISessionStorage sessionStorage)
     {
-        _sessions = new ConcurrentDictionary<string, AuthenticationSession>();
+        _sessionStorage = sessionStorage;
     }
 
     public void AddSession(AuthenticationSession session)
     {
         if (session == null) throw new ArgumentNullException(nameof(session));
-        _sessions[session.Id] = session;
+        _sessionStorage.AddSession(session);
     }
 
     public AuthenticationSession? GetSession(string state)
     {
         if (string.IsNullOrWhiteSpace(state)) return null;
 
-        AuthenticationSession? session = _sessions.Values.FirstOrDefault(x => x.State == state);
+        AuthenticationSession? session = (AuthenticationSession?)_sessionStorage.GetSession(state);
         
         if (session is null)
             return null;
 
         if (session.IsExpired)
         {
-            _sessions.TryRemove(session.Id, out _);
+            _sessionStorage.RemoveSession(session.Id);
             return null;
         }
 
@@ -38,7 +40,7 @@ public class MemoryAuthenticationSessions : IMemoryAuthenticationSessions
     public void RemoveSession(string sessionId)
     {
         if (!string.IsNullOrWhiteSpace(sessionId))
-            _sessions.TryRemove(sessionId, out _);
+            _sessionStorage.RemoveSession(sessionId);
     }
 
 }

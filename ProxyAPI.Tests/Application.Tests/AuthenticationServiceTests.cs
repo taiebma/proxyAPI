@@ -2,26 +2,28 @@ namespace ProxyAPI.Tests.Application.Tests;
 
 using FluentAssertions;
 using Moq;
-using ProxyAPI.Application.DTOs;
-using ProxyAPI.Application.Services;
-using ProxyAPI.Domain.Exceptions;
+using ProxyAPI.Domain;
+using ProxyAPI.Domain.DTOs;
 using ProxyAPI.Domain.Interfaces;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Domain.Entities;
+using ProxyAPI.Infrastructure.Exceptions;
+using ProxyAPI.Infrastructure.Interfaces;
+using ProxyAPI.Infrastructure.ValueObjects;
 using Xunit;
 
 public class AuthenticationServiceTests
 {
     private readonly Mock<ITokenCache> _mockTokenCache;
     private readonly Mock<IOAuthClient> _mockOAuthClient;
-    private readonly Mock<IMemoryAuthenticationSessions> _mockMemoryAuthenticationSessions;
+    private readonly Mock<ISessionManager> _mockSessionManager;
     private readonly AuthenticationService _service;
 
     public AuthenticationServiceTests()
     {
         _mockTokenCache = new Mock<ITokenCache>();
         _mockOAuthClient = new Mock<IOAuthClient>();
-        _mockMemoryAuthenticationSessions = new Mock<IMemoryAuthenticationSessions>();
-        _service = new AuthenticationService(_mockTokenCache.Object, _mockOAuthClient.Object, _mockMemoryAuthenticationSessions.Object);
+        _mockSessionManager = new Mock<ISessionManager>();
+        _service = new AuthenticationService(_mockTokenCache.Object, _mockOAuthClient.Object, _mockSessionManager.Object);
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public class AuthenticationServiceTests
 
         var token = new TokenValue("access-token", "refresh-token", DateTime.UtcNow.AddHours(1));
         var fakeOAuthClient = new FakeOAuthClient(token);
-        var service = new AuthenticationService(_mockTokenCache.Object, fakeOAuthClient, _mockMemoryAuthenticationSessions.Object);
+        var service = new AuthenticationService(_mockTokenCache.Object, fakeOAuthClient, _mockSessionManager.Object);
 
         var authUrl = await service.GetAuthorizationUrlAsync("http://localhost/callback");
         var request = new AuthorizationCodeRequest("auth-code", authUrl.State, authUrl.SessionId);

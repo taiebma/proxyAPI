@@ -1,8 +1,8 @@
 namespace ProxyAPI.Infrastructure.OAuth;
 
-using ProxyAPI.Domain.Exceptions;
-using ProxyAPI.Domain.Interfaces;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.Exceptions;
+using ProxyAPI.Infrastructure.Interfaces;
+using ProxyAPI.Infrastructure.ValueObjects;
 using ProxyAPI.Infrastructure.Configuration;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;

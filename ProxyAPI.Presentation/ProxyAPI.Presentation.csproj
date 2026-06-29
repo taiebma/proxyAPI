@@ -8,8 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../ProxyAPI.Domain/ProxyAPI.Domain.csproj" />
-    <ProjectReference Include="../ProxyAPI.Application/ProxyAPI.Application.csproj" />
-    <ProjectReference Include="../ProxyAPI.Infrastructure/ProxyAPI.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

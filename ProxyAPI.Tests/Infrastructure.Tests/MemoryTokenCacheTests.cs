@@ -1,7 +1,7 @@
 namespace ProxyAPI.Tests.Infrastructure.Tests;
 
 using FluentAssertions;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.ValueObjects;
 using ProxyAPI.Infrastructure.Cache;
 using Xunit;
 

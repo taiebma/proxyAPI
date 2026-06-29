@@ -1,6 +1,6 @@
 namespace ProxyAPI.Domain.Entities;
 
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.ValueObjects;
 
 public class Client
 {

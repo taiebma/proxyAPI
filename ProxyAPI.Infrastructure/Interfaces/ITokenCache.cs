@@ -1,6 +1,6 @@
-namespace ProxyAPI.Domain.Interfaces;
+namespace ProxyAPI.Infrastructure.Interfaces;
 
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.ValueObjects;
 
 public interface ITokenCache
 {

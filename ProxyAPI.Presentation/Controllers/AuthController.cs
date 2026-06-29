@@ -1,8 +1,8 @@
 namespace ProxyAPI.Presentation.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
-using ProxyAPI.Application.DTOs;
-using ProxyAPI.Application.Interfaces;
+using ProxyAPI.Domain.DTOs;
+using ProxyAPI.Domain.Interfaces;
 using ProxyAPI.Infrastructure.Configuration;
 
 [ApiController]

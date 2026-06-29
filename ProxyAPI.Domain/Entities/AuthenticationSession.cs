@@ -1,6 +1,8 @@
+using ProxyAPI.Infrastructure.Interfaces;
+
 namespace ProxyAPI.Domain.Entities;
 
-public class AuthenticationSession
+public class AuthenticationSession : IAuthenticationSession
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string State { get; set; }

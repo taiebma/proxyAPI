@@ -1,23 +1,23 @@
-namespace ProxyAPI.Application.Services;
+namespace ProxyAPI.Domain;
 
-using ProxyAPI.Application.DTOs;
-using ProxyAPI.Application.Interfaces;
-using ProxyAPI.Domain.Entities;
-using ProxyAPI.Domain.Exceptions;
+using ProxyAPI.Domain.DTOs;
 using ProxyAPI.Domain.Interfaces;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Domain.Entities;
+using ProxyAPI.Infrastructure.Exceptions;
+using ProxyAPI.Infrastructure.Interfaces;
+using ProxyAPI.Infrastructure.ValueObjects;
 
 public class AuthenticationService : IAuthenticationService
 {
     private readonly ITokenCache _tokenCache;
     private readonly IOAuthClient _oauthClient;
-    private readonly IMemoryAuthenticationSessions _memoryAuthenticationSessions;
+    private readonly ISessionManager _sessionManager;
 
-    public AuthenticationService(ITokenCache tokenCache, IOAuthClient oauthClient, IMemoryAuthenticationSessions memoryAuthenticationSessions)
+    public AuthenticationService(ITokenCache tokenCache, IOAuthClient oauthClient, ISessionManager sessionManager)
     {
         _tokenCache = tokenCache ?? throw new ArgumentNullException(nameof(tokenCache));
         _oauthClient = oauthClient ?? throw new ArgumentNullException(nameof(oauthClient));
-        _memoryAuthenticationSessions = memoryAuthenticationSessions ?? throw new ArgumentNullException(nameof(memoryAuthenticationSessions));
+        _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     }
 
     public async Task<AuthorizationUrlResponse> GetAuthorizationUrlAsync(
@@ -26,7 +26,7 @@ public class AuthenticationService : IAuthenticationService
     {
         var state = GenerateRandomString(32);
         var session = new AuthenticationSession(state);
-        _memoryAuthenticationSessions.AddSession(session);
+        _sessionManager.AddSession(session);
 
         var url = await _oauthClient.GetAuthorizationUrlAsync(state, redirectUri, scopes);
 
@@ -38,11 +38,11 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(request.Code))
             throw new OAuthException("Authorization code is missing.");
 
-        AuthenticationSession? session = _memoryAuthenticationSessions.GetSession(request.State?.Replace(' ','+') ?? "");
+        AuthenticationSession? session = _sessionManager.GetSession(request.State?.Replace(' ','+') ?? "");
         if (session == null || !session.ValidateState(request.State?.Replace(' ','+') ?? ""))
             throw new InvalidStateException("Invalid or expired state parameter.");
 
-        _memoryAuthenticationSessions.RemoveSession(request.SessionId ?? "");
+        _sessionManager.RemoveSession(request.SessionId ?? "");
 
         var clientId = new ClientId(Guid.NewGuid().ToString());
         var token = await _oauthClient.ExchangeCodeForTokenAsync(

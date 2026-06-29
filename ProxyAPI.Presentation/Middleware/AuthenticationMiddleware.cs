@@ -1,6 +1,6 @@
 namespace ProxyAPI.Presentation.Middleware;
 
-using ProxyAPI.Application.Interfaces;
+using ProxyAPI.Domain.Interfaces;
 
 public class AuthenticationMiddleware
 {

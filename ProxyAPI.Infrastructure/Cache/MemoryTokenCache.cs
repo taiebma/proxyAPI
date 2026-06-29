@@ -1,7 +1,7 @@
 namespace ProxyAPI.Infrastructure.Cache;
 
-using ProxyAPI.Domain.Interfaces;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.Interfaces;
+using ProxyAPI.Infrastructure.ValueObjects;
 using System.Collections.Concurrent;
 
 public class MemoryTokenCache : ITokenCache

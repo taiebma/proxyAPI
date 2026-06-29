@@ -1,8 +1,8 @@
 namespace ProxyAPI.Presentation.Extensions;
 
-using ProxyAPI.Application.Interfaces;
-using ProxyAPI.Application.Services;
 using ProxyAPI.Domain.Interfaces;
+using ProxyAPI.Domain;
+using ProxyAPI.Infrastructure.Interfaces;
 using ProxyAPI.Infrastructure.Cache;
 using ProxyAPI.Infrastructure.Configuration;
 using ProxyAPI.Infrastructure.OAuth;
@@ -21,6 +21,7 @@ public static class DependencyInjectionExtensions
 
         services.AddSingleton(oauthSettings);
         services.AddSingleton(cacheSettings);
+        services.AddSingleton<ISessionStorage, SessionStorage>();
 
         services.AddSingleton<ITokenCache>(sp =>
             new MemoryTokenCache(cacheSettings.DefaultAbsoluteExpirationMinutes));
@@ -32,7 +33,7 @@ public static class DependencyInjectionExtensions
             });
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
-        services.AddSingleton<IMemoryAuthenticationSessions, MemoryAuthenticationSessions>();
+        services.AddScoped<ISessionManager, SessionManager>();
 
         return services;
     }

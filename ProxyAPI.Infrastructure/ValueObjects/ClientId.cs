@@ -1,4 +1,4 @@
-namespace ProxyAPI.Domain.ValueObjects;
+namespace ProxyAPI.Infrastructure.ValueObjects;
 
 public class ClientId : IEquatable<ClientId>
 {

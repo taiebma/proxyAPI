@@ -2,7 +2,7 @@ namespace ProxyAPI.Tests.Domain.Tests;
 
 using FluentAssertions;
 using ProxyAPI.Domain.Entities;
-using ProxyAPI.Domain.ValueObjects;
+using ProxyAPI.Infrastructure.ValueObjects;
 using Xunit;
 
 public class ClientTests

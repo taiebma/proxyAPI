@@ -1,4 +1,4 @@
-namespace ProxyAPI.Application.DTOs;
+namespace ProxyAPI.Domain.DTOs;
 
 public record AuthorizationCodeRequest(string Code, string State, string? SessionId);
 

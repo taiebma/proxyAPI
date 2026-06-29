@@ -1,6 +1,6 @@
-namespace ProxyAPI.Application.Interfaces;
+namespace ProxyAPI.Domain.Interfaces;
 
-using ProxyAPI.Application.DTOs;
+using ProxyAPI.Domain.DTOs;
 
 public interface IAuthenticationService
 {
