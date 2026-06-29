@@ -10,13 +10,13 @@ using ProxyAPI.Infrastructure.Configuration;
 public class AuthController : ControllerBase
 {
     private readonly IAuthenticationService _authService;
-    private readonly OAuthSettings _oauthSettings;
+    private readonly OIdcAuthSettings _oIdcAuthSettings;
     private const string ClientIdCookieName = "X-ProxyAPI-ClientId";
 
-    public AuthController(IAuthenticationService authService, OAuthSettings oauthSettings)
+    public AuthController(IAuthenticationService authService, OIdcAuthSettings oIdcAuthSettings)
     {
         _authService = authService;
-        _oauthSettings = oauthSettings;
+        _oIdcAuthSettings = oIdcAuthSettings;
     }
 
     [HttpGet("login")]
@@ -24,7 +24,7 @@ public class AuthController : ControllerBase
         [FromQuery] string? redirectUri,
         [FromQuery] string[]? scopes)
     {
-        var baseRedirectUri = redirectUri ?? _oauthSettings.RedirectUri;
+        var baseRedirectUri = redirectUri ?? _oIdcAuthSettings.RedirectUri;
         var result = await _authService.GetAuthorizationUrlAsync(baseRedirectUri, scopes);
 
         Response.Cookies.Append("auth_session", result.SessionId,

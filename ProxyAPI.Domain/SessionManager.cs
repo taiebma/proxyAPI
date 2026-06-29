@@ -15,7 +15,12 @@ public class SessionManager : ISessionManager
 
     public void AddSession(AuthenticationSession session)
     {
-        if (session == null) throw new ArgumentNullException(nameof(session));
+        if (session == null
+         || string.IsNullOrWhiteSpace(session.Id)
+          || string.IsNullOrWhiteSpace(session.State)) 
+        {
+            throw new ArgumentNullException(nameof(AuthenticationSession));
+        }
         _sessionStorage.AddSession(session);
     }
 

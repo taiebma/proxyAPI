@@ -12,9 +12,9 @@ using System.Text.Json.Serialization;
 public class OidcClient : IOAuthClient
 {
     private readonly HttpClient _httpClient;
-    private readonly OAuthSettings _settings;
+    private readonly OIdcAuthSettings _settings;
 
-    public OidcClient(HttpClient httpClient, OAuthSettings settings)
+    public OidcClient(HttpClient httpClient, OIdcAuthSettings settings)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -65,7 +65,7 @@ public class OidcClient : IOAuthClient
         var json = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        if (tokenResponse?.AccessToken == null)
+        if (string.IsNullOrEmpty(tokenResponse?.AccessToken))
             throw new OAuthException("Invalid token response from IDP.");
 
         var handler = new JwtSecurityTokenHandler();

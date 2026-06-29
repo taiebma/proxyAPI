@@ -94,8 +94,6 @@ public class ProxyController : ControllerBase
                 !header.Key.Equals("Connection", StringComparison.OrdinalIgnoreCase) &&
                 !header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
             {
-//                if (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
-//                    continue;
 
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
             }

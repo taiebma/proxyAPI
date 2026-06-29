@@ -13,13 +13,18 @@ public static class DependencyInjectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var oauthSettings = configuration.GetSection("Oidc").Get<OAuthSettings>()
+        OIdcAuthSettings oIdcAuthSettings = configuration.GetSection("Oidc").Get<OIdcAuthSettings>()
             ?? throw new InvalidOperationException("Oidc settings are required in appsettings.json");
+        OAuthSettings? oauthSettings = configuration.GetSection("OAuth").Get<OAuthSettings>();
 
         var cacheSettings = configuration.GetSection("Cache").Get<CacheSettings>()
             ?? new CacheSettings();
 
-        services.AddSingleton(oauthSettings);
+        services.AddSingleton(oIdcAuthSettings);
+        if (oauthSettings != null)
+        {
+            services.AddSingleton(oauthSettings);
+        }
         services.AddSingleton(cacheSettings);
         services.AddSingleton<ISessionStorage, SessionStorage>();
 

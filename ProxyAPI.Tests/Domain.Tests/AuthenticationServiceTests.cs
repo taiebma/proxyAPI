@@ -1,4 +1,4 @@
-namespace ProxyAPI.Tests.Application.Tests;
+namespace ProxyAPI.Tests.Domain.Tests;
 
 using FluentAssertions;
 using Moq;
@@ -53,13 +53,13 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task HandleCallbackAsync_WithValidCode_ReturnsClientContext()
     {
-        var authUrlResponse = await _service.GetAuthorizationUrlAsync("http://localhost/callback");
-
         var token = new TokenValue("access-token", "refresh-token", DateTime.UtcNow.AddHours(1));
         var fakeOAuthClient = new FakeOAuthClient(token);
         var service = new AuthenticationService(_mockTokenCache.Object, fakeOAuthClient, _mockSessionManager.Object);
-
         var authUrl = await service.GetAuthorizationUrlAsync("http://localhost/callback");
+
+        _mockSessionManager.Setup( x => x.GetSession(It.IsAny<string>())).Returns(new AuthenticationSession(authUrl.State));
+
         var request = new AuthorizationCodeRequest("auth-code", authUrl.State, authUrl.SessionId);
         var result = await service.HandleCallbackAsync(request);
 

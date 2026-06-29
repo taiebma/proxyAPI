@@ -1,6 +1,7 @@
 namespace ProxyAPI.Presentation.Middleware;
 
 using ProxyAPI.Domain.Interfaces;
+using ProxyAPI.Infrastructure.Configuration;
 
 public class AuthenticationMiddleware
 {
@@ -12,18 +13,25 @@ public class AuthenticationMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, IAuthenticationService authService)
+    public async Task InvokeAsync(HttpContext context, IAuthenticationService authService, OIdcAuthSettings oIdcAuthSettings)
     {
         if (!context.Request.Path.StartsWithSegments("/api/auth"))
         {
-            if (context.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId))
+            if (context.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) && !string.IsNullOrWhiteSpace(clientId))
             {
                 var clientContext = await authService.GetClientContextAsync(clientId);
 
                 if (clientContext != null)
                 {
                     context.Items["ClientContext"] = clientContext;
-                    context.Request.Headers.Authorization = $"Bearer {clientContext.AccessToken}";
+                    if (!string.IsNullOrWhiteSpace(oIdcAuthSettings?.HeaderName))
+                    {
+                        context.Request.Headers[oIdcAuthSettings.HeaderName] = clientContext.AccessToken;
+                    }
+                    else
+                    {
+                        context.Request.Headers.Authorization = $"Bearer {clientContext.AccessToken}";
+                    }
                 }
                 else
                 {
@@ -31,7 +39,14 @@ public class AuthenticationMiddleware
                     if (refreshedContext != null)
                     {
                         context.Items["ClientContext"] = refreshedContext;
-                        context.Request.Headers.Authorization = $"Bearer {refreshedContext.AccessToken}";
+                        if (!string.IsNullOrWhiteSpace(oIdcAuthSettings?.HeaderName))
+                        {
+                            context.Request.Headers[oIdcAuthSettings.HeaderName] = refreshedContext.AccessToken;
+                        }
+                        else
+                        {
+                            context.Request.Headers.Authorization = $"Bearer {refreshedContext.AccessToken}";
+                        }
                     }
                     else
                     {
