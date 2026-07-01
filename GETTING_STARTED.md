@@ -274,7 +274,7 @@ La solution suit **Domain-Driven Design** :
 
 - **Domain** (`ProxyAPI.Domain`)
   - Entités métier : `Client`, `AuthenticationSession`
-  - Abstractions : `ITokenCache`, `IOAuthClient`
+  - Abstractions : `ITokenCache`, `IOidcClient`
   - Logique métier pure
 
 - **Application** (`ProxyAPI.Application`)

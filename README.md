@@ -205,10 +205,10 @@ services.AddSingleton<ITokenCache, RedisTokenCache>();
 
 ### Implémenter un IDP Custom
 
-Créer une nouvelle classe implémentant `IOAuthClient` :
+Créer une nouvelle classe implémentant `IOidcClient` :
 
 ```csharp
-public class CustomOAuthClient : IOAuthClient
+public class CustomOAuthClient : IOidcClient
 {
     // Implémenter les méthodes du contrat
 }
@@ -224,7 +224,7 @@ public class CustomOAuthClient : IOAuthClient
 
 ### 2. Application Layer
 - Orchestre les use cases
-- Utilise les abstractions du Domain (ITokenCache, IOAuthClient)
+- Utilise les abstractions du Domain (ITokenCache, IOidcClient)
 - Convertit les DTOs
 - Aucun détail d'implémentation
 

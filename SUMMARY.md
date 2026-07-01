@@ -52,7 +52,7 @@ ProxyAPI.Domain/
 │   └── TokenValue.cs             (Token avec TTL)
 ├── Interfaces/
 │   ├── ITokenCache.cs            (Abstraction cache)
-│   └── IOAuthClient.cs           (Abstraction OIDC)
+│   └── IOidcClient.cs           (Abstraction OIDC)
 └── Exceptions/
     └── DomainException.cs        (Exceptions métier)
 ```
@@ -74,7 +74,7 @@ ProxyAPI.Infrastructure/
 ├── Cache/
 │   └── MemoryTokenCache.cs       (Impl. ITokenCache)
 ├── OAuth/
-│   └── OidcClient.cs             (Impl. IOAuthClient)
+│   └── OidcClient.cs             (Impl. IOidcClient)
 └── Configuration/
     └── OAuthSettings.cs          (Settings OIDC)
 ```

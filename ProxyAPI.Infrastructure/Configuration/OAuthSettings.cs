@@ -6,6 +6,7 @@ public class OAuthSettings
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
     public string TokenEndpoint { get; set; } = string.Empty;
-    public string[]? Scopes { get; set; } = new[] { "openid", "profile", "offline_access" };
+    public string[]? Scopes { get; set; } = null;
     public string HeaderName { get; set; } = string.Empty;
+    public Dictionary<string, string>? AdditionalParameters { get; set; }
 }

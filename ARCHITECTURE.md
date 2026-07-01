@@ -13,7 +13,7 @@ ProxyAPI est architecturé selon les principes du **Domain-Driven Design (DDD)**
 **Contenu** :
 - **Entities** : `Client`, `AuthenticationSession`
 - **Value Objects** : `ClientId`, `TokenValue`
-- **Interfaces** : `ITokenCache`, `IOAuthClient` (abstractions métier)
+- **Interfaces** : `ITokenCache`, `IOidcClient` (abstractions métier)
 - **Exceptions** : `DomainException` et dérivées
 
 **Principes** :
@@ -41,7 +41,7 @@ ProxyAPI est architecturé selon les principes du **Domain-Driven Design (DDD)**
 
 **Exemple** : `AuthenticationService.HandleCallbackAsync()` orchestre :
 1. Validation du state (Domain)
-2. Échange du code (appel IOAuthClient)
+2. Échange du code (appel IOidcClient)
 3. Stockage en cache (appel ITokenCache)
 4. Retour du contexte client (DTO)
 
@@ -51,7 +51,7 @@ ProxyAPI est architecturé selon les principes du **Domain-Driven Design (DDD)**
 
 **Contenu** :
 - **Cache** : `MemoryTokenCache` (impl. `ITokenCache`)
-- **OAuth** : `OidcClient` (impl. `IOAuthClient`)
+- **OAuth** : `OidcClient` (impl. `IOidcClient`)
 - **Configuration** : `OAuthSettings`, `CacheSettings`
 
 **Principes** :
@@ -118,7 +118,7 @@ Response to Client
 
 ### 3. Extensibilité
 - Changer le cache (Redis) : créer nouvelle classe `ITokenCache`
-- Ajouter nouvel IDP : créer nouvelle classe `IOAuthClient`
+- Ajouter nouvel IDP : créer nouvelle classe `IOidcClient`
 - Ajouter nouveau transport : créer nouveau contrôleur
 
 ### 4. Réutilisabilité
@@ -153,7 +153,7 @@ ProxyAPI.Domain/
 │   └── TokenValue.cs           # Token immuable
 ├── Interfaces/
 │   ├── ITokenCache.cs          # Abstraction cache
-│   └── IOAuthClient.cs         # Abstraction OAuth
+│   └── IOidcClient.cs         # Abstraction OAuth
 └── Exceptions/
     └── DomainException.cs      # Exceptions métier
 
@@ -191,7 +191,7 @@ ProxyAPI.Presentation/
 - `AuthController` : HTTP seulement
 
 ### Open/Closed (O)
-- Ajouter nouvel IDP : nouvelle classe `IOAuthClient`
+- Ajouter nouvel IDP : nouvelle classe `IOidcClient`
 - Pas modifier code existant
 
 ### Liskov Substitution (L)
@@ -200,7 +200,7 @@ ProxyAPI.Presentation/
 
 ### Interface Segregation (I)
 - `ITokenCache` : 5 méthodes ciblées
-- `IOAuthClient` : 3 méthodes ciblées
+- `IOidcClient` : 3 méthodes ciblées
 - Pas de "God Interface"
 
 ### Dependency Inversion (D)
@@ -210,7 +210,7 @@ ProxyAPI.Presentation/
 ## Décisions Architecturales
 
 ### 1. Pourquoi Abstractions dans Domain ?
-Les interfaces `ITokenCache` et `IOAuthClient` sont dans Domain (pas Infrastructure) car :
+Les interfaces `ITokenCache` et `IOidcClient` sont dans Domain (pas Infrastructure) car :
 - Elles définissent les contrats métier
 - Le Domain les utilise conceptuellement
 - Les implémentations sont interchangeables

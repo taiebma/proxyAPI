@@ -13,50 +13,11 @@ public class AuthenticationMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, IAuthenticationService authService, OIdcAuthSettings oIdcAuthSettings)
+    public async Task InvokeAsync(HttpContext context)
     {
         if (!context.Request.Path.StartsWithSegments("/api/auth"))
         {
-            if (context.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) && !string.IsNullOrWhiteSpace(clientId))
-            {
-                var clientContext = await authService.GetClientContextAsync(clientId);
-
-                if (clientContext != null)
-                {
-                    context.Items["ClientContext"] = clientContext;
-                    if (!string.IsNullOrWhiteSpace(oIdcAuthSettings?.HeaderName))
-                    {
-                        context.Request.Headers[oIdcAuthSettings.HeaderName] = clientContext.AccessToken;
-                    }
-                    else
-                    {
-                        context.Request.Headers.Authorization = $"Bearer {clientContext.AccessToken}";
-                    }
-                }
-                else
-                {
-                    var refreshedContext = await authService.RefreshClientContextAsync(clientId);
-                    if (refreshedContext != null)
-                    {
-                        context.Items["ClientContext"] = refreshedContext;
-                        if (!string.IsNullOrWhiteSpace(oIdcAuthSettings?.HeaderName))
-                        {
-                            context.Request.Headers[oIdcAuthSettings.HeaderName] = refreshedContext.AccessToken;
-                        }
-                        else
-                        {
-                            context.Request.Headers.Authorization = $"Bearer {refreshedContext.AccessToken}";
-                        }
-                    }
-                    else
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsJsonAsync(new { error = "Invalid or expired session" });
-                        return;
-                    }
-                }
-            }
-            else
+            if (!context.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) || string.IsNullOrWhiteSpace(clientId))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsJsonAsync(new { error = "No session cookie found" });

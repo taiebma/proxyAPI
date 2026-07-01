@@ -14,14 +14,14 @@ using Xunit;
 public class AuthenticationServiceTests
 {
     private readonly Mock<ITokenCache> _mockTokenCache;
-    private readonly Mock<IOAuthClient> _mockOAuthClient;
+    private readonly Mock<IOidcClient> _mockOAuthClient;
     private readonly Mock<ISessionManager> _mockSessionManager;
     private readonly AuthenticationService _service;
 
     public AuthenticationServiceTests()
     {
         _mockTokenCache = new Mock<ITokenCache>();
-        _mockOAuthClient = new Mock<IOAuthClient>();
+        _mockOAuthClient = new Mock<IOidcClient>();
         _mockSessionManager = new Mock<ISessionManager>();
         _service = new AuthenticationService(_mockTokenCache.Object, _mockOAuthClient.Object, _mockSessionManager.Object);
     }
@@ -121,7 +121,7 @@ public class AuthenticationServiceTests
     }
 }
 
-internal class FakeOAuthClient : IOAuthClient
+internal class FakeOAuthClient : IOidcClient
 {
     private readonly TokenValue _tokenToReturn;
 

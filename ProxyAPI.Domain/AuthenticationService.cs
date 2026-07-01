@@ -10,10 +10,10 @@ using ProxyAPI.Infrastructure.ValueObjects;
 public class AuthenticationService : IAuthenticationService
 {
     private readonly ITokenCache _tokenCache;
-    private readonly IOAuthClient _oauthClient;
+    private readonly IOidcClient _oauthClient;
     private readonly ISessionManager _sessionManager;
 
-    public AuthenticationService(ITokenCache tokenCache, IOAuthClient oauthClient, ISessionManager sessionManager)
+    public AuthenticationService(ITokenCache tokenCache, IOidcClient oauthClient, ISessionManager sessionManager)
     {
         _tokenCache = tokenCache ?? throw new ArgumentNullException(nameof(tokenCache));
         _oauthClient = oauthClient ?? throw new ArgumentNullException(nameof(oauthClient));
@@ -56,7 +56,8 @@ public class AuthenticationService : IAuthenticationService
             clientId.Value,
             token.AccessToken,
             token.RefreshToken,
-            token.ExpiresAt);
+            token.ExpiresAt,
+            token.UserId);
     }
 
     public async Task<ClientContext?> GetClientContextAsync(string clientId)
@@ -74,7 +75,8 @@ public class AuthenticationService : IAuthenticationService
             clientId,
             token.AccessToken,
             token.RefreshToken,
-            token.ExpiresAt);
+            token.ExpiresAt,
+            token.UserId);
     }
 
     public async Task<ClientContext?> RefreshClientContextAsync(string clientId)
@@ -97,7 +99,8 @@ public class AuthenticationService : IAuthenticationService
                 clientId,
                 newToken.AccessToken,
                 newToken.RefreshToken,
-                newToken.ExpiresAt);
+                newToken.ExpiresAt,
+                newToken.UserId);
         }
         catch
         {

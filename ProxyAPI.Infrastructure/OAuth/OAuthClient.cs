@@ -9,50 +9,33 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class OidcClient : IOidcClient
+public class OAuthClient : IOAuthClient
 {
     private readonly HttpClient _httpClient;
-    private readonly OIdcAuthSettings _settings;
+    private readonly OAuthSettings _settings;
 
-    public OidcClient(HttpClient httpClient, OIdcAuthSettings settings)
+    public OAuthClient(HttpClient httpClient, OAuthSettings settings)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
-    public async Task<string> GetAuthorizationUrlAsync(
-        string state,
-        string redirectUri,
-        string[]? scopes = null)
-    {
-        var scope = string.Join(" ", scopes ?? _settings.Scopes ?? Array.Empty<string>());
-
-        var authUrl = $"{_settings.AuthorizationEndpoint}?" +
-            $"client_id={Uri.EscapeDataString(_settings.ClientId)}&" +
-            $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
-            $"response_type=code&" +
-            $"scope={Uri.EscapeDataString(scope)}&" +
-            $"state={Uri.EscapeDataString(state)}";
-
-        return await Task.FromResult(authUrl);
-    }
-
-    public async Task<TokenValue> ExchangeCodeForTokenAsync(
-        string code,
-        string redirectUri,
-        string? codeVerifier = null)
+    public async Task<TokenValue> GetTokenAsync()
     {
         var content = new Dictionary<string, string>
         {
-            { "grant_type", "authorization_code" },
-            { "code", code },
-            { "redirect_uri", redirectUri },
+            { "grant_type", "client_credential" },
             { "client_id", _settings.ClientId },
-            { "client_secret", _settings.ClientSecret }
+            { "client_secret", _settings.ClientSecret },
+            { "scope", string.Join(' ', _settings.Scopes??new string[0]) }
         };
-
-        if (!string.IsNullOrWhiteSpace(codeVerifier))
-            content["code_verifier"] = codeVerifier;
+        if (_settings.AdditionalParameters != null)
+        {
+            foreach (var param in _settings.AdditionalParameters)
+            {
+                content.Add(param.Key, param.Value);
+            }
+        }
 
         var request = new HttpRequestMessage(HttpMethod.Post, _settings.TokenEndpoint)
         {
@@ -73,7 +56,7 @@ public class OidcClient : IOidcClient
 
         var expiresAt = token.ValidTo;
 
-        return new TokenValue(tokenResponse.AccessToken, tokenResponse.RefreshToken, expiresAt, token.Subject);
+        return new TokenValue(tokenResponse.AccessToken, tokenResponse.RefreshToken, expiresAt);
     }
 
     public async Task<TokenValue> RefreshTokenAsync(string refreshToken)
@@ -105,11 +88,9 @@ public class OidcClient : IOidcClient
             if (tokenResponse?.AccessToken == null)
                 throw new OAuthException("Invalid token response from IDP.");
 
-            var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(tokenResponse.AccessToken);
-            var expiresAt = token.ValidTo;
+            var expiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
 
-            return new TokenValue(tokenResponse.AccessToken, tokenResponse.RefreshToken, expiresAt, token.Subject);
+            return new TokenValue(tokenResponse.AccessToken, tokenResponse.RefreshToken, expiresAt);
         }
         catch (HttpRequestException ex)
         {

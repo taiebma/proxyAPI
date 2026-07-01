@@ -6,7 +6,9 @@ public class TokenValue : IEquatable<TokenValue>
     public string? RefreshToken { get; }
     public DateTime ExpiresAt { get; }
 
-    public TokenValue(string accessToken, string? refreshToken, DateTime expiresAt)
+    public string UserId { get; set; } = string.Empty;
+
+    public TokenValue(string accessToken, string? refreshToken, DateTime expiresAt, string? userId = null)
     {
         if (string.IsNullOrWhiteSpace(accessToken))
             throw new ArgumentException("AccessToken cannot be empty.", nameof(accessToken));
@@ -17,6 +19,7 @@ public class TokenValue : IEquatable<TokenValue>
         AccessToken = accessToken;
         RefreshToken = refreshToken;
         ExpiresAt = expiresAt;
+        UserId = userId ?? string.Empty;
     }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;

@@ -1,16 +1,45 @@
 namespace ProxyAPI.Presentation.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
+using ProxyAPI.Domain.Interfaces;
+using ProxyAPI.Infrastructure.Audit;
+using ProxyAPI.Infrastructure.Configuration;
+using ProxyAPI.Infrastructure.Interfaces;
 
 [ApiController]
 [Route("api/proxy/")]
 public class ProxyController : ControllerBase
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private const string ClientIdCookieName = "X-ProxyAPI-ClientId";
 
-    public ProxyController(IHttpClientFactory httpClientFactory)
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ITokenService? _tokenService;
+    private readonly OAuthSettings? _settingsOAuth;
+    private readonly IGlobalAudit<AuditEntity> _globalAudit;
+    private readonly IAuthenticationService _authService;
+    private readonly OIdcAuthSettings _oIdcAuthSettings;
+    private readonly ILogger<ProxyController> _logger;
+
+    public ProxyController(
+        IHttpClientFactory httpClientFactory, 
+        IServiceProvider serviceProvider, 
+        IAuthenticationService authService, 
+        OIdcAuthSettings oIdcAuthSettings, 
+        IGlobalAudit<AuditEntity> globalAudit,
+        ILogger<ProxyController> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _authService = authService;
+        _oIdcAuthSettings = oIdcAuthSettings;
+        _serviceProvider = serviceProvider;
+        _globalAudit = globalAudit;
+        _tokenService = _serviceProvider.GetService<ITokenService>();
+        if (_tokenService != null)
+        {
+            _settingsOAuth = _serviceProvider.GetService<OAuthSettings>();
+        }
+        _logger = logger;
     }
 
     [HttpGet]
@@ -20,8 +49,34 @@ public class ProxyController : ControllerBase
     [HttpPatch]
     public async Task<IActionResult> ProxyRequest()
     {
-        if (!HttpContext.Items.TryGetValue("ClientContext", out _))
-            return Unauthorized(new { error = "Not authenticated" });
+//        if (!HttpContext.Items.TryGetValue("ClientContext", out _))
+//            return Unauthorized(new { error = "Not authenticated" });
+
+        string userId = string.Empty;
+
+        if (HttpContext == null)
+        {
+            _logger.LogError("HttpContext is null in ProxyRequest");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "HttpContext is null" });
+        }
+
+        // Verification de l'identité de l'utilisateur
+        if (HttpContext.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) && !string.IsNullOrWhiteSpace(clientId))
+        {
+            userId = await InitAuthHeadersAndGetUserId(HttpContext, clientId);
+            if (string.IsNullOrEmpty(userId))
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await HttpContext.Response.WriteAsJsonAsync(new { error = "Invalid or expired session" });
+                return Unauthorized(new { error = "Invalid or expired session" });
+            }
+        }
+        else
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await HttpContext.Response.WriteAsJsonAsync(new { error = "Invalid or expired session" });
+            return Unauthorized(new { error = "Invalid or expired session" });
+        }
 
         string uri = Request.Query["uri"].ToString();
 
@@ -32,17 +87,7 @@ public class ProxyController : ControllerBase
 
         if (Request.QueryString.HasValue)
         {
-            var queryItems = System.Web.HttpUtility.ParseQueryString(Request.QueryString.Value);
-            queryItems.Remove("uri");
-            
-            if (queryItems.Count > 0)
-            {
-                string remainingQuery = queryItems.ToString(); // Génère automatiquement la chaîne formatée k1=v1&k2=v2
-                if (!string.IsNullOrEmpty(remainingQuery))
-                {
-                    upstreamUrl += (upstreamUrl.Contains("?") ? "&" : "?") + remainingQuery;
-                }
-            }
+            upstreamUrl += BuildQueryString(Request.QueryString, upstreamUrl);
         }
 
         var client = _httpClientFactory.CreateClient();
@@ -54,10 +99,6 @@ public class ProxyController : ControllerBase
 
             if (Request.ContentLength.HasValue && Request.ContentLength > 0)
             {
-                /*
-                var body = await new StreamReader(Request.Body).ReadToEndAsync();
-                request.Content = new StringContent(body, System.Text.Encoding.UTF8, Request.ContentType ?? "application/json");
-                */
                 request.Content = new StreamContent(Request.Body);
                 if (!string.IsNullOrEmpty(Request.ContentType))
                 {
@@ -65,10 +106,20 @@ public class ProxyController : ControllerBase
                 }
             }
 
-            CopyHeaders(request);
+            CopyHeaders(request, _tokenService);
 
             var response = await client.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
+
+            // Enregistrer l'audit
+            await _globalAudit.LogRequest(new AuditEntity
+            {
+                Timestamp = DateTime.UtcNow,
+                UserId = userId,
+                Method = Request.Method,
+                Uri = upstreamUrl,
+                StatusCode = (int)response.StatusCode
+            });
 
             var result = new ContentResult
             {
@@ -86,7 +137,62 @@ public class ProxyController : ControllerBase
         }
     }
 
-    private void CopyHeaders(HttpRequestMessage request)
+    private  async Task<string> InitAuthHeadersAndGetUserId(HttpContext httpContext, string clientId)
+    {
+        var clientContext = await _authService.GetClientContextAsync(clientId);
+
+        if (clientContext != null)
+        {
+            httpContext.Items["ClientContext"] = clientContext;
+            if (!string.IsNullOrWhiteSpace(_oIdcAuthSettings?.HeaderName))
+            {
+                httpContext.Request.Headers[_oIdcAuthSettings.HeaderName] = clientContext.AccessToken;
+            }
+            else
+            {
+                httpContext.Request.Headers.Authorization = $"Bearer {clientContext.AccessToken}";
+            }
+            return clientContext.UserId;
+        }
+        else
+        {
+            var refreshedContext = await _authService.RefreshClientContextAsync(clientId);
+            if (refreshedContext != null)
+            {
+                httpContext.Items["ClientContext"] = refreshedContext;
+                if (!string.IsNullOrWhiteSpace(_oIdcAuthSettings?.HeaderName))
+                {
+                    httpContext.Request.Headers[_oIdcAuthSettings.HeaderName] = refreshedContext.AccessToken;
+                }
+                else
+                {
+                    httpContext.Request.Headers.Authorization = $"Bearer {refreshedContext.AccessToken}";
+                }
+                return refreshedContext.UserId;
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+    }
+
+    private string BuildQueryString(QueryString queryString, string upstreamUrl)
+    {
+        var queryItems = System.Web.HttpUtility.ParseQueryString(queryString.Value);
+        queryItems.Remove("uri");
+        
+        if (queryItems.Count > 0)
+        {
+            string remainingQuery = queryItems.ToString(); // Génère automatiquement la chaîne formatée k1=v1&k2=v2
+            if (!string.IsNullOrEmpty(remainingQuery))
+            {
+                return (upstreamUrl.Contains("?") ? "&" : "?") + remainingQuery;
+            }
+        }
+        return string.Empty;
+    }
+    private void CopyHeaders(HttpRequestMessage request, ITokenService? tokenService)
     {
         foreach (var header in Request.Headers)
         {
@@ -96,6 +202,19 @@ public class ProxyController : ControllerBase
             {
 
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+            }
+        }
+
+        if (tokenService != null)
+        {
+            string token = tokenService.GetTokenAsync().Result.AccessToken;
+            if (string.IsNullOrWhiteSpace(_settingsOAuth.HeaderName))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+            else
+            {
+                request.Headers.TryAddWithoutValidation(_settingsOAuth.HeaderName, token);
             }
         }
     }
