@@ -8,6 +8,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 
+builder.Configuration.AddJsonFile("ServiceDiscovery.json", optional: true, reloadOnChange: true)
+    .AddJsonFile($"ServiceDiscovery.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();

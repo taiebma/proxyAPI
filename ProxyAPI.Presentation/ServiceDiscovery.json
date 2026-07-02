@@ -1,0 +1,9 @@
+{
+    "ServiceDiscovery": {
+        "v1.apipki.api.dapi": {
+            "https": [
+                "nas2.taieb.fr:49158"
+            ]
+        }
+    }
+}

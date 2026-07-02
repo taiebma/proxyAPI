@@ -66,19 +66,22 @@ public class ProxyController : ControllerBase
             userId = await InitAuthHeadersAndGetUserId(HttpContext, clientId);
             if (string.IsNullOrEmpty(userId))
             {
-                HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await HttpContext.Response.WriteAsJsonAsync(new { error = "Invalid or expired session" });
                 return Unauthorized(new { error = "Invalid or expired session" });
             }
         }
         else
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await HttpContext.Response.WriteAsJsonAsync(new { error = "Invalid or expired session" });
             return Unauthorized(new { error = "Invalid or expired session" });
         }
 
         string uri = Request.Query["uri"].ToString();
+        /*
+        if (Request.Query["usn"] == "true")
+        {
+            // Si le paramètre usn est présent et égal à true, on ne fait pas de proxy
+            uri = uri.Replace(".", "\.");
+        }
+        */
 
         if (string.IsNullOrWhiteSpace(uri))
             return BadRequest(new { error = "Missing 'uri' query parameter" });
@@ -179,7 +182,7 @@ public class ProxyController : ControllerBase
 
     private string BuildQueryString(QueryString queryString, string upstreamUrl)
     {
-        var queryItems = System.Web.HttpUtility.ParseQueryString(queryString.Value);
+        var queryItems = System.Web.HttpUtility.ParseQueryString(queryString.Value??string.Empty);
         queryItems.Remove("uri");
         
         if (queryItems.Count > 0)
@@ -205,7 +208,7 @@ public class ProxyController : ControllerBase
             }
         }
 
-        if (tokenService != null)
+        if (tokenService != null && _settingsOAuth != null)
         {
             string token = tokenService.GetTokenAsync().Result.AccessToken;
             if (string.IsNullOrWhiteSpace(_settingsOAuth.HeaderName))
