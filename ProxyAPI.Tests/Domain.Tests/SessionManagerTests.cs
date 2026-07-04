@@ -69,7 +69,7 @@ public class SessionManagerTests
 
         session.Should().NotBeNull();
         session.IsExpired.Should().BeFalse();
-        session.Id.Should().NotBeNullOrWhiteSpace();
+        session.State.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

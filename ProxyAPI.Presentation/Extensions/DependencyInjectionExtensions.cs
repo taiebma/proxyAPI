@@ -66,10 +66,8 @@ public static class DependencyInjectionExtensions
             ?? new CacheSettings();
 
         services.AddSingleton(cacheSettings);
+        services.AddSingleton(typeof(ICacheService<>), typeof(MemoryCacheService<>));
         services.AddSingleton<ISessionStorage, SessionStorage>();
-
-        services.AddSingleton<ITokenCache>(sp =>
-            new MemoryTokenCache(cacheSettings.DefaultAbsoluteExpirationMinutes));
 
         services.AddHttpClient<IOidcClient, OidcClient>()
             .ConfigureHttpClient(client =>

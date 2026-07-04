@@ -18,7 +18,7 @@ public class SessionStorageTests
         var result = sessionStorage.GetSession("test-state");
 
         result.Should().NotBeNull();
-        result!.Id.Should().Be(session.Id);
+        result!.State.Should().Be(session.State);
         result.State.Should().Be(session.State);
     }
 
@@ -65,7 +65,7 @@ public class SessionStorageTests
         var session = new AuthenticationSession("delete-state");
 
         sessionStorage.AddSession(session);
-        sessionStorage.RemoveSession(session.Id);
+        sessionStorage.RemoveSession(session.State);
 
         var result = sessionStorage.GetSession("delete-state");
 

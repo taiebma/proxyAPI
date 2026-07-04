@@ -5,13 +5,13 @@ using ProxyAPI.Infrastructure.ValueObjects;
 using ProxyAPI.Infrastructure.Cache;
 using Xunit;
 
-public class MemoryTokenCacheTests
+public class MemoryCacheServiceTests
 {
     [Fact]
     public void Set_WithValidToken_StoresToken()
     {
-        var cache = new MemoryTokenCache();
-        var clientId = new ClientId("client-1");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId = "client-1";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         cache.Set(clientId, token);
@@ -24,8 +24,8 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Get_WithNonExistentClientId_ReturnsNull()
     {
-        var cache = new MemoryTokenCache();
-        var clientId = new ClientId("non-existent");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId = "non-existent";
 
         var result = cache.Get(clientId);
 
@@ -35,8 +35,8 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Exists_WithStoredToken_ReturnsTrue()
     {
-        var cache = new MemoryTokenCache();
-        var clientId = new ClientId("client-1");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId = "client-1";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         cache.Set(clientId, token);
@@ -47,15 +47,15 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Exists_WithNonExistentClientId_ReturnsFalse()
     {
-        var cache = new MemoryTokenCache();
-        cache.Exists(new ClientId("non-existent")).Should().BeFalse();
+        var cache = new MemoryCacheService<TokenValue>();
+        cache.Exists("non-existent").Should().BeFalse();
     }
 
     [Fact]
     public void Remove_WithStoredClientId_DeletesToken()
     {
-        var cache = new MemoryTokenCache();
-        var clientId = new ClientId("client-1");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId = "client-1";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         cache.Set(clientId, token);
@@ -67,8 +67,8 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Get_WithExpiredToken_ReturnsNullAndRemovesEntry()
     {
-        var cache = new MemoryTokenCache(defaultExpirationMinutes: 0);
-        var clientId = new ClientId("client-1");
+        var cache = new MemoryCacheService<TokenValue>(defaultExpirationMinutes: 0);
+        var clientId = "client-1";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         cache.Set(clientId, token);
@@ -83,9 +83,9 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Clear_RemovesAllTokens()
     {
-        var cache = new MemoryTokenCache();
-        var clientId1 = new ClientId("client-1");
-        var clientId2 = new ClientId("client-2");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId1 = "client-1";
+        var clientId2 = "client-2";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         cache.Set(clientId1, token);
@@ -100,7 +100,7 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Set_WithNullClientId_ThrowsArgumentNullException()
     {
-        var cache = new MemoryTokenCache();
+        var cache = new MemoryCacheService<TokenValue>();
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         var act = () => cache.Set(null!, token);
@@ -111,8 +111,8 @@ public class MemoryTokenCacheTests
     [Fact]
     public void Set_WithNullToken_ThrowsArgumentNullException()
     {
-        var cache = new MemoryTokenCache();
-        var clientId = new ClientId("client-1");
+        var cache = new MemoryCacheService<TokenValue>();
+        var clientId = "client-1";
 
         var act = () => cache.Set(clientId, null!);
 

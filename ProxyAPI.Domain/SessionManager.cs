@@ -16,7 +16,6 @@ public class SessionManager : ISessionManager
     public void AddSession(AuthenticationSession session)
     {
         if (session == null
-         || string.IsNullOrWhiteSpace(session.Id)
           || string.IsNullOrWhiteSpace(session.State)) 
         {
             throw new ArgumentNullException(nameof(AuthenticationSession));
@@ -35,7 +34,7 @@ public class SessionManager : ISessionManager
 
         if (session.IsExpired)
         {
-            _sessionStorage.RemoveSession(session.Id);
+            _sessionStorage.RemoveSession(session.State);
             return null;
         }
 

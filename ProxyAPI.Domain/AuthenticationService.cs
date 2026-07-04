@@ -9,11 +9,11 @@ using ProxyAPI.Infrastructure.ValueObjects;
 
 public class AuthenticationService : IAuthenticationService
 {
-    private readonly ITokenCache _tokenCache;
+    private readonly ICacheService<TokenValue> _tokenCache;
     private readonly IOidcClient _oauthClient;
     private readonly ISessionManager _sessionManager;
 
-    public AuthenticationService(ITokenCache tokenCache, IOidcClient oauthClient, ISessionManager sessionManager)
+    public AuthenticationService(ICacheService<TokenValue> tokenCache, IOidcClient oauthClient, ISessionManager sessionManager)
     {
         _tokenCache = tokenCache ?? throw new ArgumentNullException(nameof(tokenCache));
         _oauthClient = oauthClient ?? throw new ArgumentNullException(nameof(oauthClient));
@@ -30,7 +30,7 @@ public class AuthenticationService : IAuthenticationService
 
         var url = await _oauthClient.GetAuthorizationUrlAsync(state, redirectUri, scopes);
 
-        return new AuthorizationUrlResponse(url, state, session.Id);
+        return new AuthorizationUrlResponse(url, state, Guid.NewGuid().ToString());
     }
 
     public async Task<ClientContext> HandleCallbackAsync(AuthorizationCodeRequest request)
@@ -44,16 +44,16 @@ public class AuthenticationService : IAuthenticationService
 
         _sessionManager.RemoveSession(request.SessionId ?? "");
 
-        var clientId = new ClientId(Guid.NewGuid().ToString());
         var token = await _oauthClient.ExchangeCodeForTokenAsync(
             request.Code,
             "http://localhost:5000/auth/callback",
             session.CodeVerifier);
 
+        var clientId = Guid.NewGuid().ToString();
         _tokenCache.Set(clientId, token);
 
         return new ClientContext(
-            clientId.Value,
+            clientId,
             token.AccessToken,
             token.RefreshToken,
             token.ExpiresAt,
@@ -65,8 +65,7 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(clientId))
             return null;
 
-        var id = new ClientId(clientId);
-        var token = _tokenCache.Get(id);
+        var token = _tokenCache.Get(clientId);
 
         if (token == null || token.IsExpired)
             return null;
@@ -84,8 +83,7 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(clientId))
             return null;
 
-        var id = new ClientId(clientId);
-        var token = _tokenCache.Get(id);
+        var token = _tokenCache.Get(clientId);
 
         if (token?.RefreshToken == null)
             return null;
@@ -93,7 +91,7 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             var newToken = await _oauthClient.RefreshTokenAsync(token.RefreshToken);
-            _tokenCache.Set(id, newToken);
+            _tokenCache.Set(clientId, newToken);
 
             return new ClientContext(
                 clientId,
@@ -104,7 +102,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch
         {
-            _tokenCache.Remove(id);
+            _tokenCache.Remove(clientId);
             return null;
         }
     }
@@ -114,7 +112,7 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(clientId))
             return;
 
-        _tokenCache.Remove(new ClientId(clientId));
+        _tokenCache.Remove(clientId);
     }
 
     private static string GenerateRandomString(int length)

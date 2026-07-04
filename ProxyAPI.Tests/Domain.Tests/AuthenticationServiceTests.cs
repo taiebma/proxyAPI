@@ -13,14 +13,14 @@ using Xunit;
 
 public class AuthenticationServiceTests
 {
-    private readonly Mock<ITokenCache> _mockTokenCache;
+    private readonly Mock<ICacheService<TokenValue>> _mockTokenCache;
     private readonly Mock<IOidcClient> _mockOAuthClient;
     private readonly Mock<ISessionManager> _mockSessionManager;
     private readonly AuthenticationService _service;
 
     public AuthenticationServiceTests()
     {
-        _mockTokenCache = new Mock<ITokenCache>();
+        _mockTokenCache = new Mock<ICacheService<TokenValue>>();
         _mockOAuthClient = new Mock<IOidcClient>();
         _mockSessionManager = new Mock<ISessionManager>();
         _service = new AuthenticationService(_mockTokenCache.Object, _mockOAuthClient.Object, _mockSessionManager.Object);
@@ -70,12 +70,12 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task GetClientContextAsync_WithValidClientId_ReturnsCachedToken()
     {
-        var clientId = new ClientId("client-1");
+        var clientId = "client-1";
         var token = new TokenValue("access-token", null, DateTime.UtcNow.AddHours(1));
 
         _mockTokenCache.Setup(x => x.Get(clientId)).Returns(token);
 
-        var result = await _service.GetClientContextAsync("client-1");
+        var result = await _service.GetClientContextAsync(clientId);
 
         result.Should().NotBeNull();
         result!.AccessToken.Should().Be("access-token");
@@ -84,10 +84,10 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task GetClientContextAsync_WithExpiredToken_ReturnsNull()
     {
-        var clientId = new ClientId("client-1");
+        var clientId = "client-1";
         _mockTokenCache.Setup(x => x.Get(clientId)).Returns((TokenValue?)null);
 
-        var result = await _service.GetClientContextAsync("client-1");
+        var result = await _service.GetClientContextAsync(clientId);
 
         result.Should().BeNull();
     }
@@ -95,7 +95,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task RefreshClientContextAsync_WithValidRefreshToken_ReturnsNewToken()
     {
-        var clientId = new ClientId("client-1");
+        var clientId = "client-1";
         var oldToken = new TokenValue("old-token", "refresh-token", DateTime.UtcNow.AddHours(1));
         var newToken = new TokenValue("new-token", "new-refresh", DateTime.UtcNow.AddHours(1));
 
@@ -117,7 +117,7 @@ public class AuthenticationServiceTests
         var clientId = "client-1";
         await _service.LogoutAsync(clientId);
 
-        _mockTokenCache.Verify(x => x.Remove(It.IsAny<ClientId>()), Times.Once);
+        _mockTokenCache.Verify(x => x.Remove(It.IsAny<string>()), Times.Once);
     }
 }
 

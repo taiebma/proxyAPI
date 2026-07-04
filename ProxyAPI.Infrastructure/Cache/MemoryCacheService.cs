@@ -4,64 +4,64 @@ using ProxyAPI.Infrastructure.Interfaces;
 using ProxyAPI.Infrastructure.ValueObjects;
 using System.Collections.Concurrent;
 
-public class MemoryTokenCache : ITokenCache
+public class MemoryCacheService<T> : ICacheService<T>
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _cache;
     private readonly int _defaultExpirationMinutes;
 
     private class CacheEntry
     {
-        public required TokenValue Token { get; set; }
+        public required T Value { get; set; }
         public DateTime StoredAt { get; set; }
         public int ExpirationMinutes { get; set; }
     }
 
-    public MemoryTokenCache(int defaultExpirationMinutes = 60)
+    public MemoryCacheService(int defaultExpirationMinutes = 60)
     {
         _cache = new ConcurrentDictionary<string, CacheEntry>();
         _defaultExpirationMinutes = defaultExpirationMinutes;
     }
 
-    public void Set(ClientId clientId, TokenValue token)
+    public void Set(string key, T value)
     {
-        if (clientId == null) throw new ArgumentNullException(nameof(clientId));
-        if (token == null) throw new ArgumentNullException(nameof(token));
+        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (value == null) throw new ArgumentNullException(nameof(value));
 
-        _cache[clientId.Value] = new CacheEntry
+        _cache[key] = new CacheEntry
         {
-            Token = token,
+            Value = value,
             StoredAt = DateTime.UtcNow,
             ExpirationMinutes = _defaultExpirationMinutes
         };
     }
 
-    public TokenValue? Get(ClientId clientId)
+    public T? Get(string key)
     {
-        if (clientId == null) return null;
+        if (key == null) return default(T);
 
-        if (_cache.TryGetValue(clientId.Value, out var entry))
+        if (_cache.TryGetValue(key, out var entry))
         {
             if (IsEntryExpired(entry))
             {
-                _cache.TryRemove(clientId.Value, out _);
-                return null;
+                _cache.TryRemove(key, out _);
+                return default(T);
             }
 
-            return entry.Token;
+            return entry.Value;
         }
 
-        return null;
+        return default(T);
     }
 
-    public bool Exists(ClientId clientId)
+    public bool Exists(string key)
     {
-        return Get(clientId) != null;
+        return Get(key) != null;
     }
 
-    public void Remove(ClientId clientId)
+    public void Remove(string key)
     {
-        if (clientId != null)
-            _cache.TryRemove(clientId.Value, out _);
+        if (key != null)
+            _cache.TryRemove(key, out _);
     }
 
     public void Clear()
@@ -74,4 +74,5 @@ public class MemoryTokenCache : ITokenCache
         var expirationTime = entry.StoredAt.AddMinutes(entry.ExpirationMinutes);
         return DateTime.UtcNow > expirationTime;
     }
+
 }
