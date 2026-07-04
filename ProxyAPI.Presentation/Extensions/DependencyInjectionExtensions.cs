@@ -36,16 +36,22 @@ public static class DependencyInjectionExtensions
         }
 
         // ServiceDicovery configuration
-        services.AddServiceDiscovery();
+        using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
+        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("ServiceDiscoveryBootstrap");
+
+        services.AddServiceDiscoveryWithOptionalPlugin(configuration, bootstrapLogger);
+
         services.ConfigureHttpClientDefaults(static http =>
         {
             http.AddServiceDiscovery();
         });
+
         services.Configure<ServiceDiscoveryOptions>(options =>
         {
             options.AllowAllSchemes = false;
             options.AllowedSchemes = ["https"];
         });
+
         services.Configure<ConfigurationServiceEndpointProviderOptions>(static options =>
         {
             options.SectionName = "ServiceDiscovery";
