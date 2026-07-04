@@ -35,11 +35,15 @@ public static class DependencyInjectionExtensions
             services.AddScoped<ITokenService, TokenService>();
         }
 
-        // ServiceDicovery configuration
+        // Loading Extensions
         using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("ServiceDiscoveryBootstrap");
+        ServiceDiscoveryBootstrapper.TryLoadPluginExtension(services, configuration, bootstrapLogger);
 
-        services.AddServiceDiscoveryWithOptionalPlugin(configuration, bootstrapLogger);
+        // ServiceDicovery configuration par defaut
+        services.AddServiceDiscoveryCore();
+        services.AddConfigurationServiceEndpointProvider();
+        services.AddPassThroughServiceEndpointProvider();
 
         services.ConfigureHttpClientDefaults(static http =>
         {

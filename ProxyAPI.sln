@@ -11,9 +11,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProxyAPI.Presentation", "Pr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProxyAPI.Tests", "ProxyAPI.Tests\ProxyAPI.Tests.csproj", "{5E6F7A8B-9C0D-1E2F-3A4B-5C6D7E8F9A0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyAPI.Infrastructure.SdCoac", "ProxyAPI.Infrastructure.SdCoac\ProxyAPI.Infrastructure.SdCoac.csproj", "{751ED578-4235-4801-9CCA-2BA2CD86FEB2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyAPI.Infrastructure.ExtSdCoac", "ProxyAPI.Infrastructure.ExtSdCoac\ProxyAPI.Infrastructure.ExtSdCoac.csproj", "{751ED578-4235-4801-9CCA-2BA2CD86FEB2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyAPI.Infrastructure.SdExtension", "ProxyAPI.Infrastructure.SdExtension\ProxyAPI.Infrastructure.SdExtension.csproj", "{BF5CD4D8-EF13-4ED7-97CA-8A4AB68C47EB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyAPI.Infrastructure.Interfaces", "ProxyAPI.Infrastructure.Interfaces\ProxyAPI.Infrastructure.Interfaces.csproj", "{BF5CD4D8-EF13-4ED7-97CA-8A4AB68C47EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyAPI.Infrastructure.ExtAuditBdd", "ProxyAPI.Infrastructure.ExtAuditBdd\ProxyAPI.Infrastructure.ExtAuditBdd.csproj", "{156DE730-899A-427E-A4F0-965D3A6D40B4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -97,6 +99,18 @@ Global
 		{BF5CD4D8-EF13-4ED7-97CA-8A4AB68C47EB}.Release|x64.Build.0 = Release|Any CPU
 		{BF5CD4D8-EF13-4ED7-97CA-8A4AB68C47EB}.Release|x86.ActiveCfg = Release|Any CPU
 		{BF5CD4D8-EF13-4ED7-97CA-8A4AB68C47EB}.Release|x86.Build.0 = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|x64.Build.0 = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Debug|x86.Build.0 = Debug|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|x64.ActiveCfg = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|x64.Build.0 = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|x86.ActiveCfg = Release|Any CPU
+		{156DE730-899A-427E-A4F0-965D3A6D40B4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

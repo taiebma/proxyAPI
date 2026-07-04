@@ -2,9 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ProxyAPI.Infrastructure.SdExtension;
+namespace ProxyAPI.Infrastructure.Interfaces;
 
-public interface IServiceDiscoveryExtension
+public interface IProxyAPIExtension
 {
     void ConfigureServices(IServiceCollection services, IConfiguration configuration);
 }

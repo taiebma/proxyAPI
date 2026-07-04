@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../ProxyAPI.Domain/ProxyAPI.Domain.csproj" />
-    <ProjectReference Include="../ProxyAPI.Infrastructure.SdExtension/ProxyAPI.Infrastructure.SdExtension.csproj" />
+    <ProjectReference Include="../ProxyAPI.Infrastructure.Extension/ProxyAPI.Infrastructure.Interfaces.csproj" />
   </ItemGroup>
 
   <ItemGroup>
