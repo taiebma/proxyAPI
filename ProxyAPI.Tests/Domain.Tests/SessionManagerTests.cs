@@ -11,12 +11,12 @@ public class SessionManagerTests
 {
 
 
-    private readonly Mock<ISessionStorage> _mockSessionStorage;
+    private readonly Mock<ICacheService<IAuthenticationSession>> _mockSessionStorage;
     private readonly SessionManager _sessionManager;
 
     public SessionManagerTests()
     {
-        _mockSessionStorage = new Mock<ISessionStorage>();
+        _mockSessionStorage = new Mock<ICacheService<IAuthenticationSession>>();
         _sessionManager = new SessionManager(_mockSessionStorage.Object);
     }
     
@@ -52,7 +52,7 @@ public class SessionManagerTests
     public void GetSession_WithValidStateNotFound_ReturnNull()
     {
         string state = "state-1";
-        _mockSessionStorage.Setup(x => x.GetSession(state)).Returns((AuthenticationSession)null);
+        _mockSessionStorage.Setup(x => x.Get(state)).Returns((AuthenticationSession)null);
 
         var res = _sessionManager.GetSession(state);
 
@@ -63,20 +63,20 @@ public class SessionManagerTests
     public void GetSession_WithValidState_ReturnsSession()
     {
         var state = "valid-state";
-        _mockSessionStorage.Setup(x => x.GetSession(state)).Returns(new AuthenticationSession(state));
+        _mockSessionStorage.Setup(x => x.Get(state)).Returns(new AuthenticationSession(state));
 
         var session = _sessionManager.GetSession(state);
 
         session.Should().NotBeNull();
-        session.IsExpired.Should().BeFalse();
-        session.State.Should().NotBeNullOrWhiteSpace();
+        session?.IsExpired.Should().BeFalse();
+        session?.State.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public void GetSession_WithValidStateExpired_ReturnNull()
     {
         var state = "valid-state";
-        _mockSessionStorage.Setup(x => x.GetSession(state)).Returns(new AuthenticationSession(state, null, 0));
+        _mockSessionStorage.Setup(x => x.Get(state)).Returns(new AuthenticationSession(state, null, 0));
 
         var session = _sessionManager.GetSession(state);
 

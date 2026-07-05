@@ -10,6 +10,7 @@ using ProxyAPI.Infrastructure.Audit;
 using ProxyAPI.Domain.Audit;
 using Microsoft.Extensions.ServiceDiscovery;
 using System.Net;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 public static class DependencyInjectionExtensions
 {
@@ -32,8 +33,17 @@ public static class DependencyInjectionExtensions
                 {
                     client.Timeout = TimeSpan.FromSeconds(30);
                 });
+            // Business OAuth service
             services.AddScoped<ITokenService, TokenService>();
         }
+
+        // Infra OIDC
+        services.AddHttpClient<IOidcClient, OidcClient>()
+            .ConfigureHttpClient(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
 
         // Loading Extensions
         using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
@@ -64,18 +74,10 @@ public static class DependencyInjectionExtensions
         // Cache configuration
         var cacheSettings = configuration.GetSection("Cache").Get<CacheSettings>()
             ?? new CacheSettings();
-
         services.AddSingleton(cacheSettings);
-        services.AddSingleton(typeof(ICacheService<>), typeof(MemoryCacheService<>));
-        services.AddSingleton<ISessionStorage, SessionStorage>();
+        services.TryAddSingleton(typeof(ICacheService<>), typeof(MemoryCacheService<>));
 
-        services.AddHttpClient<IOidcClient, OidcClient>()
-            .ConfigureHttpClient(client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(30);
-            });
-
-
+        // Business services
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ISessionManager, SessionManager>();
 

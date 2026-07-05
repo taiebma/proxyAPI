@@ -6,11 +6,11 @@ using ProxyAPI.Infrastructure.Interfaces;
 
 public class SessionManager : ISessionManager
 {
-    private readonly ISessionStorage _sessionStorage;
+    private readonly ICacheService<IAuthenticationSession> _sessions;
 
-    public SessionManager(ISessionStorage sessionStorage)
+    public SessionManager(ICacheService<IAuthenticationSession> sessions)
     {
-        _sessionStorage = sessionStorage;
+        _sessions = sessions;
     }
 
     public void AddSession(AuthenticationSession session)
@@ -20,21 +20,21 @@ public class SessionManager : ISessionManager
         {
             throw new ArgumentNullException(nameof(AuthenticationSession));
         }
-        _sessionStorage.AddSession(session);
+        _sessions.Set(session.State, session);
     }
 
     public AuthenticationSession? GetSession(string state)
     {
         if (string.IsNullOrWhiteSpace(state)) return null;
 
-        AuthenticationSession? session = (AuthenticationSession?)_sessionStorage.GetSession(state);
+        AuthenticationSession? session = (AuthenticationSession?)_sessions.Get(state);
         
         if (session is null)
             return null;
 
         if (session.IsExpired)
         {
-            _sessionStorage.RemoveSession(session.State);
+            _sessions.Remove(session.State);
             return null;
         }
 
@@ -44,7 +44,7 @@ public class SessionManager : ISessionManager
     public void RemoveSession(string sessionId)
     {
         if (!string.IsNullOrWhiteSpace(sessionId))
-            _sessionStorage.RemoveSession(sessionId);
+            _sessions.Remove(sessionId);
     }
 
 }
