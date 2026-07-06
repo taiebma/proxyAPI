@@ -8,16 +8,25 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 public class OidcClient : IOidcClient
 {
     private readonly HttpClient _httpClient;
     private readonly OIdcAuthSettings _settings;
+    private readonly ConfigurationManager<OpenIdConnectConfiguration> _configManager;
+    private OpenIdConnectConfiguration _oidcConfig = null!;
 
     public OidcClient(HttpClient httpClient, OIdcAuthSettings settings)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _configManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+            $"{_settings.Authority}/.well-known/openid-configuration",
+            new OpenIdConnectConfigurationRetriever());
     }
 
     public async Task<string> GetAuthorizationUrlAsync(
@@ -69,6 +78,8 @@ public class OidcClient : IOidcClient
             throw new OAuthException("Invalid token response from IDP.");
 
         var handler = new JwtSecurityTokenHandler();
+        CheckTokenValidity(handler, tokenResponse.AccessToken);
+
         var token = handler.ReadJwtToken(tokenResponse.AccessToken);
 
         var expiresAt = token.ValidTo;
@@ -117,4 +128,26 @@ public class OidcClient : IOidcClient
         }
     }
 
+    private void CheckTokenValidity(JwtSecurityTokenHandler handler, string accessToken)
+    {
+        if (_oidcConfig == null)
+            _oidcConfig = _configManager.GetConfigurationAsync().GetAwaiter().GetResult();
+
+        var validationParameters = new TokenValidationParameters
+        {
+            ValidIssuers = new List<string> { $"{_settings.Authority}" },
+            IssuerSigningKeys = _oidcConfig.SigningKeys,
+            ValidateLifetime = true,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+        try
+        {
+            ClaimsPrincipal principal = handler.ValidateToken(accessToken, validationParameters, out var validatedToken);
+        }
+        catch (SecurityTokenException ex)
+        {
+            throw new OAuthException($"Token validation failed: {ex.Message}");
+        }
+    }
 }

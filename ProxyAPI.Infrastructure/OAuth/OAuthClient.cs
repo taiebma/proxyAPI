@@ -5,19 +5,27 @@ using ProxyAPI.Infrastructure.Interfaces;
 using ProxyAPI.Infrastructure.ValueObjects;
 using ProxyAPI.Infrastructure.Configuration;
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 public class OAuthClient : IOAuthClient
 {
     private readonly HttpClient _httpClient;
     private readonly OAuthSettings _settings;
+    private readonly ConfigurationManager<OpenIdConnectConfiguration> _configManager;
+    private OpenIdConnectConfiguration _oauthConfig = null!;
 
     public OAuthClient(HttpClient httpClient, OAuthSettings settings)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _configManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+            $"{_settings.Authority}/.well-known/openid-configuration",
+            new OpenIdConnectConfigurationRetriever());
     }
 
     public async Task<TokenValue> GetTokenAsync()
@@ -52,8 +60,9 @@ public class OAuthClient : IOAuthClient
             throw new OAuthException("Invalid token response from IDP.");
 
         var handler = new JwtSecurityTokenHandler();
-        var token = handler.ReadJwtToken(tokenResponse.AccessToken);
+        CheckTokenValidity(handler, tokenResponse.AccessToken);
 
+        var token = handler.ReadJwtToken(tokenResponse.AccessToken);
         var expiresAt = token.ValidTo;
 
         return new TokenValue(tokenResponse.AccessToken, tokenResponse.RefreshToken, expiresAt);
@@ -95,6 +104,30 @@ public class OAuthClient : IOAuthClient
         catch (HttpRequestException ex)
         {
             throw new OAuthException($"Failed to refresh token: {ex.Message}");
+        }
+    }
+
+    private void CheckTokenValidity(JwtSecurityTokenHandler handler, string accessToken)
+    {
+        if (_oauthConfig == null)
+            _oauthConfig = _configManager.GetConfigurationAsync().GetAwaiter().GetResult();
+
+        var validationParameters = new TokenValidationParameters
+        {
+            ValidIssuers = new List<string> { $"{_settings.Authority}" },
+            IssuerSigningKeys = _oauthConfig.SigningKeys,
+            ValidateLifetime = true,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+
+        try
+        {
+            handler.ValidateToken(accessToken, validationParameters, out SecurityToken validatedToken);
+        }
+        catch (Exception ex)
+        {
+            throw new OAuthException($"Invalid token: {ex.Message}");
         }
     }
 
