@@ -9,11 +9,11 @@ using ProxyAPI.Infrastructure.Configuration;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthenticationService _authService;
+    private readonly IProxyAPIAuthenticationService _authService;
     private readonly OIdcAuthSettings _oIdcAuthSettings;
     private const string ClientIdCookieName = "X-ProxyAPI-ClientId";
 
-    public AuthController(IAuthenticationService authService, OIdcAuthSettings oIdcAuthSettings)
+    public AuthController(IProxyAPIAuthenticationService authService, OIdcAuthSettings oIdcAuthSettings)
     {
         _authService = authService;
         _oIdcAuthSettings = oIdcAuthSettings;

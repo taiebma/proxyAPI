@@ -17,14 +17,14 @@ public class ProxyController : ControllerBase
     private readonly ITokenService? _tokenService;
     private readonly OAuthSettings? _settingsOAuth;
     private readonly IGlobalAudit<AuditEntity> _globalAudit;
-    private readonly IAuthenticationService _authService;
+    private readonly IProxyAPIAuthenticationService _authService;
     private readonly OIdcAuthSettings _oIdcAuthSettings;
     private readonly ILogger<ProxyController> _logger;
 
     public ProxyController(
         IHttpClientFactory httpClientFactory, 
         IServiceProvider serviceProvider, 
-        IAuthenticationService authService, 
+        IProxyAPIAuthenticationService authService, 
         OIdcAuthSettings oIdcAuthSettings, 
         IGlobalAudit<AuditEntity> globalAudit,
         ILogger<ProxyController> logger)
@@ -52,7 +52,7 @@ public class ProxyController : ControllerBase
 //        if (!HttpContext.Items.TryGetValue("ClientContext", out _))
 //            return Unauthorized(new { error = "Not authenticated" });
 
-        string userId = string.Empty;
+        string userId = User.Identity?.Name ?? "UnknownUser";
 
         if (HttpContext == null)
         {
@@ -63,11 +63,7 @@ public class ProxyController : ControllerBase
         // Verification de l'identité de l'utilisateur
         if (HttpContext.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) && !string.IsNullOrWhiteSpace(clientId))
         {
-            userId = await InitAuthHeadersAndGetUserId(HttpContext, clientId);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new { error = "Invalid or expired session" });
-            }
+            await InitAuthHeadersAndGetUserId(HttpContext, clientId);
         }
         else
         {
@@ -75,13 +71,6 @@ public class ProxyController : ControllerBase
         }
 
         string uri = Request.Query["uri"].ToString();
-        /*
-        if (Request.Query["usn"] == "true")
-        {
-            // Si le paramètre usn est présent et égal à true, on ne fait pas de proxy
-            uri = uri.Replace(".", "\.");
-        }
-        */
 
         if (string.IsNullOrWhiteSpace(uri))
             return BadRequest(new { error = "Missing 'uri' query parameter" });
@@ -140,7 +129,7 @@ public class ProxyController : ControllerBase
         }
     }
 
-    private  async Task<string> InitAuthHeadersAndGetUserId(HttpContext httpContext, string clientId)
+    private  async Task InitAuthHeadersAndGetUserId(HttpContext httpContext, string clientId)
     {
         var clientContext = await _authService.GetClientContextAsync(clientId);
 
@@ -155,7 +144,7 @@ public class ProxyController : ControllerBase
             {
                 httpContext.Request.Headers.Authorization = $"Bearer {clientContext.AccessToken}";
             }
-            return clientContext.UserId;
+            return;
         }
         else
         {
@@ -171,11 +160,11 @@ public class ProxyController : ControllerBase
                 {
                     httpContext.Request.Headers.Authorization = $"Bearer {refreshedContext.AccessToken}";
                 }
-                return refreshedContext.UserId;
+                return ;
             }
             else
             {
-                return string.Empty;
+                throw new UnauthorizedAccessException("Invalid or expired session");
             }
         }
     }

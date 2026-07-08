@@ -2,7 +2,7 @@ namespace ProxyAPI.Domain.Interfaces;
 
 using ProxyAPI.Domain.DTOs;
 
-public interface IAuthenticationService
+public interface IProxyAPIAuthenticationService
 {
     Task<AuthorizationUrlResponse> GetAuthorizationUrlAsync(string redirectUri, string[]? scopes = null);
     Task<ClientContext> HandleCallbackAsync(AuthorizationCodeRequest request);

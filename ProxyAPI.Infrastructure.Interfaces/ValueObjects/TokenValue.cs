@@ -6,8 +6,6 @@ public class TokenValue : IEquatable<TokenValue>
     public string? RefreshToken { get; }
     public DateTime ExpiresAt { get; }
 
-    public string UserId { get; set; } = string.Empty;
-
     public TokenValue(string accessToken, string? refreshToken, DateTime expiresAt, string? userId = null)
     {
         if (string.IsNullOrWhiteSpace(accessToken))
@@ -19,7 +17,6 @@ public class TokenValue : IEquatable<TokenValue>
         AccessToken = accessToken;
         RefreshToken = refreshToken;
         ExpiresAt = expiresAt;
-        UserId = userId ?? string.Empty;
     }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;

@@ -11,6 +11,9 @@ using ProxyAPI.Domain.Audit;
 using Microsoft.Extensions.ServiceDiscovery;
 using System.Net;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
+using System.IdentityModel.Tokens.Jwt;
 
 public static class DependencyInjectionExtensions
 {
@@ -19,6 +22,10 @@ public static class DependencyInjectionExtensions
         IConfiguration configuration)
     {
 
+        // Authentication Handler
+        services.AddAuthentication("ProxyId")
+            .AddScheme<AuthenticationSchemeOptions, ProxyAPIAuthenticationHandler>("ProxyId", options => { });
+        
         // OIDC/OAuth configuration
         OIdcAuthSettings oIdcAuthSettings = configuration.GetSection("Oidc").Get<OIdcAuthSettings>()
             ?? throw new InvalidOperationException("Oidc settings are required in appsettings.json");
@@ -78,7 +85,7 @@ public static class DependencyInjectionExtensions
         services.TryAddSingleton(typeof(ICacheService<>), typeof(MemoryCacheService<>));
 
         // Business services
-        services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IProxyAPIAuthenticationService, ProxyAPIAuthenticationService>();
         services.AddScoped<ISessionManager, SessionManager>();
 
         // Audit configuration

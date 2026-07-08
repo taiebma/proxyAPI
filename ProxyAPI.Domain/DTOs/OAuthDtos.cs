@@ -12,8 +12,7 @@ public record ClientContext(
     string ClientId,
     string AccessToken,
     string? RefreshToken,
-    DateTime ExpiresAt,
-    string UserId );
+    DateTime ExpiresAt);
 
 public record AuthorizationUrlResponse(
     string Url,
