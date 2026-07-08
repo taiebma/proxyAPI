@@ -1,11 +1,13 @@
 namespace ProxyAPI.Presentation.Controllers;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProxyAPI.Domain.Interfaces;
 using ProxyAPI.Infrastructure.Audit;
 using ProxyAPI.Infrastructure.Configuration;
 using ProxyAPI.Infrastructure.Interfaces;
 
+[Authorize(Roles = "Developer")]
 [ApiController]
 [Route("api/proxy/")]
 public class ProxyController : ControllerBase

@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using System.IdentityModel.Tokens.Jwt;
+using ProxyAPI.Presentation.Extensions.Authentication;
 
 public static class DependencyInjectionExtensions
 {
@@ -22,10 +23,20 @@ public static class DependencyInjectionExtensions
         IConfiguration configuration)
     {
 
+        // Loading Extensions
+        using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
+        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("ServiceDiscoveryBootstrap");
+        ServiceDiscoveryBootstrapper.TryLoadPluginExtension(services, configuration, bootstrapLogger);
+
         // Authentication Handler
         services.AddAuthentication("ProxyId")
             .AddScheme<AuthenticationSchemeOptions, ProxyAPIAuthenticationHandler>("ProxyId", options => { });
-        
+
+        // Role Transformation
+        services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
+        services.Configure<RoleProviderOptions>(configuration.GetSection("RoleProvider"));
+        services.TryAddScoped<IRoleProvider, ConfigurationRoleProvider>();
+
         // OIDC/OAuth configuration
         OIdcAuthSettings oIdcAuthSettings = configuration.GetSection("Oidc").Get<OIdcAuthSettings>()
             ?? throw new InvalidOperationException("Oidc settings are required in appsettings.json");
@@ -51,11 +62,6 @@ public static class DependencyInjectionExtensions
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
 
-
-        // Loading Extensions
-        using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
-        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("ServiceDiscoveryBootstrap");
-        ServiceDiscoveryBootstrapper.TryLoadPluginExtension(services, configuration, bootstrapLogger);
 
         // ServiceDicovery configuration par defaut
         services.AddServiceDiscoveryCore();

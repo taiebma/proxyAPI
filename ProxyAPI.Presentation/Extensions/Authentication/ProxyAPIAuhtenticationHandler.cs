@@ -8,7 +8,7 @@ using ProxyAPI.Infrastructure.Configuration;
 using ProxyAPI.Infrastructure.Interfaces;
 using ProxyAPI.Infrastructure.ValueObjects;
 
-namespace ProxyAPI.Presentation.Extensions;
+namespace ProxyAPI.Presentation.Extensions.Authentication;
 
 public class ProxyAPIAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -53,7 +53,7 @@ public class ProxyAPIAuthenticationHandler : AuthenticationHandler<Authenticatio
         }
 
         // Reconstruire le principal à partir des claims stockées lors du login
-        var identity = new ClaimsIdentity(token.Claims, Scheme.Name, nameType: "sub", roleType: "role");
+        var identity = new ClaimsIdentity(token.Claims, Scheme.Name, nameType: "sub", roleType: ClaimTypes.Role);
         var principal = new ClaimsPrincipal(identity);
 
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
