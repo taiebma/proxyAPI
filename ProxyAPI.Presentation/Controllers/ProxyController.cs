@@ -65,7 +65,7 @@ public class ProxyController : ControllerBase
         // Verification de l'identité de l'utilisateur
         if (HttpContext.Request.Headers.TryGetValue(ClientIdCookieName, out var clientId) && !string.IsNullOrWhiteSpace(clientId))
         {
-            await InitAuthHeadersAndGetUserId(HttpContext, clientId);
+            await InitAuthHeadersAndGetUserId(HttpContext, clientId!);
         }
         else
         {
@@ -116,7 +116,7 @@ public class ProxyController : ControllerBase
             });
 
             _logger.LogInformation("Proxied request for user {UserId}: {Method} {Uri} - Status: {StatusCode}", userId, Request.Method, upstreamUrl, (int)response.StatusCode);
-            
+
             var result = new ContentResult
             {
                 Content = content,
@@ -180,7 +180,7 @@ public class ProxyController : ControllerBase
         
         if (queryItems.Count > 0)
         {
-            string remainingQuery = queryItems.ToString(); // Génère automatiquement la chaîne formatée k1=v1&k2=v2
+            string remainingQuery = queryItems.ToString()!; // Génère automatiquement la chaîne formatée k1=v1&k2=v2
             if (!string.IsNullOrEmpty(remainingQuery))
             {
                 return (upstreamUrl.Contains("?") ? "&" : "?") + remainingQuery;
