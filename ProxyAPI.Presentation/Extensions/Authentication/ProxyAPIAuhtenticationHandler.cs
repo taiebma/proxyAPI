@@ -45,7 +45,7 @@ public class ProxyAPIAuthenticationHandler : AuthenticationHandler<Authenticatio
 
         var proxyId = idValues.ToString();
 
-        JwtSecurityToken? token = await GetJwtToken(proxyId);
+        JwtSecurityToken? token = await GetUserJwtToken(proxyId);
 
         if (token == null)
         {
@@ -60,9 +60,9 @@ public class ProxyAPIAuthenticationHandler : AuthenticationHandler<Authenticatio
         return AuthenticateResult.Success(ticket);
     }
 
-    private  async Task<JwtSecurityToken?> GetJwtToken(string clientId)
+    private  async Task<JwtSecurityToken?> GetUserJwtToken(string userId)
     {
-        var clientContext = await _authService.GetClientContextAsync(clientId);
+        var clientContext = await _authService.GetClientContextAsync(userId);
 
         if (clientContext != null)
         {
@@ -73,7 +73,7 @@ public class ProxyAPIAuthenticationHandler : AuthenticationHandler<Authenticatio
         }
         else
         {
-            var refreshedContext = await _authService.RefreshClientContextAsync(clientId);
+            var refreshedContext = await _authService.RefreshClientContextAsync(userId);
             if (refreshedContext != null)
             {
                 var handler = new JwtSecurityTokenHandler();

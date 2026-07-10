@@ -1,15 +1,23 @@
+using Microsoft.Extensions.Logging;
 using ProxyAPI.Infrastructure.Interfaces;
 
 namespace ProxyAPI.Infrastructure.Audit;
 
 public class AuditConsole : IAuditService
 {
+    private readonly ILogger<AuditConsole> _logger;
+
+    public AuditConsole(ILogger<AuditConsole> logger)
+    {
+        _logger = logger;
+    }
+    
     public void LogRequest(DateTime timestamp, string UserId, string method, string uri, int statusCode, string? body)
     {
-        Console.WriteLine($"Request: {timestamp:dd/MMM/yyyy:HH:mm:ss zzz} ({UserId}): {method} {uri} - Status: {statusCode}");
+        _logger.LogInformation("Request: {Timestamp} ({UserId}): {Method} {Uri} - Status: {StatusCode}", timestamp, UserId, method, uri, statusCode);
         if (body != null)
         {
-            Console.WriteLine($"Body: {body}");
+            _logger.LogInformation("Body: {Body}", body);
         }
     }
 }

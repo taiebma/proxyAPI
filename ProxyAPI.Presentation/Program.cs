@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Configuration;
 using ProxyAPI.Presentation.Extensions;
 using ProxyAPI.Presentation.Middleware;
 
@@ -8,6 +9,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 
+builder.Logging.AddConfiguration();
 builder.Configuration.AddJsonFile("ServiceDiscovery.json", optional: true, reloadOnChange: true)
     .AddJsonFile($"ServiceDiscovery.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();

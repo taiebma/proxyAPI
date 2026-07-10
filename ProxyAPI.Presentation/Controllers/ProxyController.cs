@@ -115,6 +115,8 @@ public class ProxyController : ControllerBase
                 StatusCode = (int)response.StatusCode
             });
 
+            _logger.LogInformation("Proxied request for user {UserId}: {Method} {Uri} - Status: {StatusCode}", userId, Request.Method, upstreamUrl, (int)response.StatusCode);
+            
             var result = new ContentResult
             {
                 Content = content,

@@ -15,6 +15,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using System.IdentityModel.Tokens.Jwt;
 using ProxyAPI.Presentation.Extensions.Authentication;
+using Microsoft.Extensions.Logging.Configuration;
+using ProxyAPI.Presentation.Extensions.Logging;
 
 public static class DependencyInjectionExtensions
 {
@@ -22,11 +24,22 @@ public static class DependencyInjectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-
         // Loading Extensions
         using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("ServiceDiscoveryBootstrap");
         ServiceDiscoveryBootstrapper.TryLoadPluginExtension(services, configuration, bootstrapLogger);
+
+        // Configure logging
+        var hasPluginLogger = services.Any(s => s.ServiceType == typeof(IPluginLoggerMarker));
+
+        if (!hasPluginLogger)
+        {
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<ILoggerProvider, ProxyAPILoggerProvider>());
+            LoggerProviderOptions.RegisterProviderOptions
+                <ProxyAPILoggerConfiguration, ProxyAPILoggerProvider>(services);
+            services.Configure<ProxyAPILoggerConfiguration>(configuration.GetSection("Logging:ProxyAPI"));
+        }
 
         // Authentication Handler
         services.AddAuthentication("ProxyId")

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using ProxyAPI.Infrastructure.Interfaces;
 
 namespace ProxyAPI.Infrastructure.ExtAuthz;
@@ -6,12 +7,14 @@ namespace ProxyAPI.Infrastructure.ExtAuthz;
 public class AuthzRoleProvider : IRoleProvider
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<AuthzRoleProvider> _logger;
     private readonly ICacheService<string[]> _cache;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-    public AuthzRoleProvider(HttpClient httpClient, ICacheService<string[]> cache)
+    public AuthzRoleProvider(HttpClient httpClient, ILogger<AuthzRoleProvider> logger, ICacheService<string[]> cache)
     {
         _httpClient = httpClient;
+        _logger = logger;
         _cache = cache;
     }
 
@@ -32,7 +35,7 @@ public class AuthzRoleProvider : IRoleProvider
             catch (Exception ex)
             {
                 // Log the exception if needed
-                Console.WriteLine($"Error fetching roles for user {userId}: {ex.Message}");
+                _logger.LogError(ex, "Error fetching roles for user {UserId}", userId);
             }
         }
         return (IReadOnlyList<string>)(roles ?? Array.Empty<string>());
