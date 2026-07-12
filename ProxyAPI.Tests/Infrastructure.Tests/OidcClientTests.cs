@@ -7,6 +7,9 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Moq;
 using ProxyAPI.Infrastructure.Configuration;
 using ProxyAPI.Infrastructure.Exceptions;
 using ProxyAPI.Infrastructure.OAuth;
@@ -15,6 +18,10 @@ using Xunit;
 
 public class OidcClientTests
 {
+    public OidcClientTests()
+    {
+    }
+
     [Fact]
     public async Task GetAuthorizationUrlAsync_WithDefaultScopes_ReturnsCorrectlyEncodedUrl()
     {
@@ -76,11 +83,15 @@ public class OidcClientTests
         var settings = new OIdcAuthSettings
         {
             TokenEndpoint = "https://idp.example.com/token",
+            Authority = "https://idp.example.com/",
             ClientId = "client-123",
             ClientSecret = "secret"
         };
 
-        var client = new OidcClient(httpClient, settings);
+        var client = new OidcClient(
+            httpClient,
+            settings,
+            (_, _) => Task.CompletedTask);
 
         var result = await client.ExchangeCodeForTokenAsync("auth-code", "https://app.example.com/callback");
 
@@ -131,7 +142,10 @@ public class OidcClientTests
             ClientSecret = "secret"
         };
 
-        var client = new OidcClient(httpClient, settings);
+        var client = new OidcClient(
+            httpClient,
+            settings,
+            (_, _) => Task.CompletedTask);
 
         var result = await client.RefreshTokenAsync("refresh-456");
 

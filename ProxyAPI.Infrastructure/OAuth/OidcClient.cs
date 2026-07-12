@@ -18,12 +18,17 @@ public class OidcClient : IOidcClient
     private readonly HttpClient _httpClient;
     private readonly OIdcAuthSettings _settings;
     private readonly ConfigurationManager<OpenIdConnectConfiguration> _configManager;
+    private readonly Func<JwtSecurityTokenHandler, string, Task>? _checkTokenValidityOverride;
     private OpenIdConnectConfiguration _oidcConfig = null!;
 
-    public OidcClient(HttpClient httpClient, OIdcAuthSettings settings)
+    public OidcClient(
+        HttpClient httpClient,
+        OIdcAuthSettings settings,
+        Func<JwtSecurityTokenHandler, string, Task>? checkTokenValidityOverride = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _checkTokenValidityOverride = checkTokenValidityOverride;
         _configManager = new ConfigurationManager<OpenIdConnectConfiguration>(
             $"{_settings.Authority}/.well-known/openid-configuration",
             new OpenIdConnectConfigurationRetriever());
@@ -78,7 +83,8 @@ public class OidcClient : IOidcClient
             throw new OAuthException("Invalid token response from IDP.");
 
         var handler = new JwtSecurityTokenHandler();
-        CheckTokenValidity(handler, tokenResponse.AccessToken);
+        var validateToken = _checkTokenValidityOverride ?? CheckTokenValidity;
+        await validateToken(handler, tokenResponse.AccessToken);
 
         var token = handler.ReadJwtToken(tokenResponse.AccessToken);
 
@@ -117,6 +123,8 @@ public class OidcClient : IOidcClient
                 throw new OAuthException("Invalid token response from IDP.");
 
             var handler = new JwtSecurityTokenHandler();
+            var validateToken = _checkTokenValidityOverride ?? CheckTokenValidity;
+            await validateToken(handler, tokenResponse.AccessToken);
             var token = handler.ReadJwtToken(tokenResponse.AccessToken);
             var expiresAt = token.ValidTo;
 
@@ -128,10 +136,10 @@ public class OidcClient : IOidcClient
         }
     }
 
-    private void CheckTokenValidity(JwtSecurityTokenHandler handler, string accessToken)
+    private async Task CheckTokenValidity(JwtSecurityTokenHandler handler, string accessToken)
     {
         if (_oidcConfig == null)
-            _oidcConfig = _configManager.GetConfigurationAsync().GetAwaiter().GetResult();
+            _oidcConfig = await _configManager.GetConfigurationAsync();
 
         var validationParameters = new TokenValidationParameters
         {
