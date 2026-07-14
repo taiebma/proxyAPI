@@ -1,59 +1,48 @@
-# ProxyAPI - Proxy OAuth/OIDC
+# ProxyAPI
 
-ProxyAPI est une application ASP.NET Core qui permet d’authentifier un utilisateur via un flux OAuth 2.0/OIDC puis de proxyfier ses requêtes vers un service upstream avec un token d’accès injecté automatiquement.
+ProxyAPI est une solution ASP.NET Core destinée à faciliter l’authentification OAuth/OIDC de requêtes API vers des services qui sont dans des zones protégées et non accessible en direct.
+Il vérifie l'authentification et les authorisations de l'utilisateur gr^ace au Code flow OIDC qui est fait au préalable.
 
-## Vue d’ensemble
+## Présentation
 
-Le projet est actuellement organisé autour de trois grands blocs :
+Cette application permet de :
+- démarrer un flux d’authentification OAuth 2.0 / OIDC,
+- gérer une session utilisateur temporaire,
+- stocker et rafraîchir des jetons d’accès,
+- proxyfier des requêtes HTTP vers une cible externe tout en conservant l’identité authentifiée.
 
-- Domain : logique métier et abstractions
-- Infrastructure : implémentations de cache, OAuth/OIDC, configuration et audit
-- Presentation : contrôleurs ASP.NET Core, middleware et composition des dépendances
+## Architecture générale
 
-## Composants principaux
+Le projet repose sur une séparation claire entre trois couches principales :
 
-### Domain
-- `ProxyAPIAuthenticationService` : orchestration du flow OAuth et de la gestion des clients authentifiés
-- `SessionManager` : stockage temporaire des sessions OAuth en mémoire
-- Interfaces métier : `IProxyAPIAuthenticationService`, `ISessionManager`, `ITokenService`
-- DTOs : `AuthorizationUrlResponse`, `AuthorizationCodeRequest`, `ClientContext`
+- Domain : logique métier, services d’authentification et abstractions
+- Infrastructure : implémentations techniques (OIDC, cache, audit, configuration)
+- Presentation : contrôleurs HTTP, middleware et composition des dépendances
 
-### Infrastructure
-- `OIdcClient` : échange de code contre token et refresh token
-- `MemoryCacheService<T>` : implémentation générique de cache en mémoire
-- `OIdcAuthSettings` et `OAuthSettings` : lecture de la configuration OIDC/OAuth
-- modules d’extension : audit BDD, authz, logging, service discovery, cache
+## Fonctionnalités principales
 
-### Presentation
-- `AuthController` : endpoints `login`, `callback`, `logout`, `status`
-- `ProxyController` : proxy de requêtes HTTP vers une URL passée via le paramètre `uri`
-- `AuthenticationMiddleware` : ajout d’un mécanisme d’authentification/initialisation des headers
-- `Program.cs` : configuration du pipeline ASP.NET Core et injection de dépendances
-
-## Fonctionnalités
-
-### Authentification OAuth
-- Flux Authorization Code
-- Support de tout fournisseur OIDC compatible
-- Gestion de l’état (`state`) et d’une session courte
-- Identifiant de session `auth_session` et header client `X-ProxyAPI-ClientId`
+### Authentification OAuth/OIDC
+- support du flux Authorization Code,
+- intégration avec un fournisseur OIDC externe,
+- gestion du paramètre `state` et des sessions temporaires,
+- endpoints de login, callback, logout et vérification de statut.
 
 ### Proxy HTTP
-- Réception de requêtes via `GET/POST/PUT/DELETE/PATCH`
-- Paramètre obligatoire `uri` pour définir l’URL upstream
-- Injection du token Bearer ou d’un header personnalisé
-- Transmission des headers et du corps de la requête
+- réception de requêtes via les méthodes GET, POST, PUT, DELETE et PATCH,
+- paramètre obligatoire `uri` pour définir la cible upstream,
+- injection automatique du jeton d’accès dans la requête sortante,
+- transmission du corps et des headers du client initial.
 
-### Audit et sécurité
-- Intégration d’un mécanisme d’audit via les extensions infrastructure
-- Authentification basée sur un header et des rôles configurés via `RoleProvider`
-- Support du refresh token si l’IDP le fournit
+### Audit et extensibilité
+- mécanisme d’audit configurable,
+- support de modules d’extension pour logging, authz, discovery et cache,
+- architecture conçue pour évoluer vers des implémentations plus robustes en environnement de production.
 
 ## Prérequis
 
-- .NET SDK compatible avec la solution
-- Un fournisseur OIDC accessible (Keycloak, Azure AD, Auth0, etc.)
-- Optionnellement Docker si vous souhaitez tester localement avec Keycloak
+- SDK .NET compatible avec la solution,
+- un fournisseur OIDC atteignable,
+- éventuellement Docker si vous souhaitez tester avec Keycloak localement.
 
 ## Démarrage rapide
 
@@ -63,69 +52,59 @@ dotnet restore
 dotnet build
 ```
 
-Puis lancer l’application :
+Lancer ensuite l’application :
 
 ```bash
 cd ProxyAPI.Presentation
 dotnet run
 ```
 
-L’application démarre habituellement sur `http://localhost:5000` et peut aussi exposer `https://localhost:5001` selon la configuration de développement.
+L’application peut être accessible via `http://localhost:5000` ou `https://localhost:5001` selon la configuration locale.
 
 ## Configuration
 
-La configuration principale se trouve dans :
+La configuration principale est définie dans :
 
 - [ProxyAPI.Presentation/appsettings.json](ProxyAPI.Presentation/appsettings.json)
 - [ProxyAPI.Presentation/appsettings.Development.json](ProxyAPI.Presentation/appsettings.Development.json)
 
-Les sections importantes sont :
-
-- `Oidc` : endpoints d’autorisation et de token
-- `OAuth` : configuration complémentaire pour les clients OAuth
-- `Cache` : expiration des objets cache
-- `RoleProvider` : rôles et mapping utilisateur
+Sections importantes :
+- `Oidc` : endpoints et paramètres de connexion à l’IDP,
+- `OAuth` : paramètres complémentaires pour les clients OAuth,
+- `Cache` : configuration du cache mémoire,
+- `RoleProvider` : rôles et mappage utilisateur.
 
 ## Endpoints principaux
 
-- `GET /api/auth/login` : démarre le login OAuth
-- `GET /api/auth/callback` : réception du code d’autorisation
-- `POST /api/auth/logout` : supprimer le contexte client
-- `GET /api/auth/status` : vérifier si la session est toujours valide
-- `GET|POST|PUT|DELETE|PATCH /api/proxy/` : proxy vers une URL upstream via le paramètre `uri`
+- `GET /api/auth/login` : initie le flux OAuth
+- `GET /api/auth/callback` : reçoit le code d’autorisation
+- `POST /api/auth/logout` : termine la session client
+- `GET /api/auth/status` : vérifie la validité de la session
+- `GET|POST|PUT|DELETE|PATCH /api/proxy/` : proxy une requête vers une URL upstream
 
-## Exemple de flux
+## Flux de fonctionnement
 
-1. L’utilisateur appelle `GET /api/auth/login`
-2. Le proxy génère un `state` et enregistre une session temporaire
-3. L’URL d’autorisation est renvoyée à l’utilisateur
-4. Après connexion, l’IDP redirige vers `GET /api/auth/callback`
-5. Le proxy échange le code contre un token
-6. Le token est stocké en cache et lié à un `clientId`
-7. Le client peut ensuite appeler le proxy avec le header `X-ProxyAPI-ClientId`
-8. Le proxy récupère le token et l’injecte dans la requête vers l’upstream
+1. Le client démarre l’authentification via `GET /api/auth/login`.
+2. Le service génère un `state` de sécurité et enregistre une session temporaire.
+3. L’URL d’autorisation est renvoyée au client.
+4. Après validation par l’IDP, le callback est traité et un jeton est échangé.
+5. Le jeton est stocké et associé à un identifiant client.
+6. Les requêtes suivantes passent par le proxy, qui injecte le jeton dans la requête sortante.
 
 ## Tests
 
-Les tests sont organisés sous [ProxyAPI.Tests](ProxyAPI.Tests) et peuvent être exécutés avec :
+La suite de tests est localisée dans [ProxyAPI.Tests](ProxyAPI.Tests) et peut être exécutée avec :
 
 ```bash
 dotnet test
 ```
 
-## Notes de conception
-
-Le projet s’appuie sur une architecture modulaire, avec une séparation claire entre :
-
-- la logique métier pure,
-- les adaptations techniques,
-- l’exposition HTTP,
-- et les extension points fournis par les modules infrastructure.
-
-Cette approche facilite l’ajout de nouveaux fournisseurs OIDC, de nouveaux mécanismes de cache ou de nouveaux modules d’audit sans réécrire le cœur du service.
-
-## Documentation complémentaire
+## Documentation associée
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [GETTING_STARTED.md](GETTING_STARTED.md)
 - [SUMMARY.md](SUMMARY.md)
+
+## Notes de conception
+
+L’architecture favorise la séparation des responsabilités, la testabilité et l’extensibilité. Elle permet d’ajouter de nouveaux fournisseurs OIDC, de nouveaux mécanismes de cache ou de nouveaux modules d’audit sans remettre en cause le cœur du système.
