@@ -1,282 +1,131 @@
-# ProxyAPI - OAuth Authentication Proxy for Insomnia
+# ProxyAPI - Proxy OAuth/OIDC
 
-Un proxy .NET 9 qui authentifie les utilisateurs Insomnia via OAuth 2.0 (Authorization Code Flow) auprès d'un IDP OIDC générique.
+ProxyAPI est une application ASP.NET Core qui permet d’authentifier un utilisateur via un flux OAuth 2.0/OIDC puis de proxyfier ses requêtes vers un service upstream avec un token d’accès injecté automatiquement.
 
-## Architecture DDD
+## Vue d’ensemble
 
-Le projet respecte les principes du Domain-Driven Design avec une séparation claire des responsabilités :
+Le projet est actuellement organisé autour de trois grands blocs :
 
-```
-- ProxyAPI.Domain        : Entités, value objects, interfaces métier
-- ProxyAPI.Application   : Services d'orchestration et DTOs
-- ProxyAPI.Infrastructure: Implémentations (cache, clients OAuth)
-- ProxyAPI.Presentation  : Controllers, middleware, dépendances ASP.NET
-- ProxyAPI.Tests         : Tests unitaires avec xUnit et Moq
-```
+- Domain : logique métier et abstractions
+- Infrastructure : implémentations de cache, OAuth/OIDC, configuration et audit
+- Presentation : contrôleurs ASP.NET Core, middleware et composition des dépendances
+
+## Composants principaux
+
+### Domain
+- `ProxyAPIAuthenticationService` : orchestration du flow OAuth et de la gestion des clients authentifiés
+- `SessionManager` : stockage temporaire des sessions OAuth en mémoire
+- Interfaces métier : `IProxyAPIAuthenticationService`, `ISessionManager`, `ITokenService`
+- DTOs : `AuthorizationUrlResponse`, `AuthorizationCodeRequest`, `ClientContext`
+
+### Infrastructure
+- `OIdcClient` : échange de code contre token et refresh token
+- `MemoryCacheService<T>` : implémentation générique de cache en mémoire
+- `OIdcAuthSettings` et `OAuthSettings` : lecture de la configuration OIDC/OAuth
+- modules d’extension : audit BDD, authz, logging, service discovery, cache
+
+### Presentation
+- `AuthController` : endpoints `login`, `callback`, `logout`, `status`
+- `ProxyController` : proxy de requêtes HTTP vers une URL passée via le paramètre `uri`
+- `AuthenticationMiddleware` : ajout d’un mécanisme d’authentification/initialisation des headers
+- `Program.cs` : configuration du pipeline ASP.NET Core et injection de dépendances
 
 ## Fonctionnalités
 
-### 1. Authentification OAuth 2.0
-- **Flow**: Authorization Code Flow
-- **Support**: Tout IDP OIDC (Keycloak, Azure AD, etc.)
-- **Endpoints**:
-  - `GET /api/auth/login` - Initie le flow OAuth
-  - `POST /api/auth/callback` - Reçoit le code d'autorisation
-  - `POST /api/auth/logout` - Termina la session
-  - `GET /api/auth/status` - Vérifie l'état d'authentification
+### Authentification OAuth
+- Flux Authorization Code
+- Support de tout fournisseur OIDC compatible
+- Gestion de l’état (`state`) et d’une session courte
+- Identifiant de session `auth_session` et header client `X-ProxyAPI-ClientId`
 
-### 2. Gestion du Cache
-- **IMemoryCache** : Stockage thread-safe des tokens
-- **TTL Automatique** : Éviction des tokens expirés
-- **Refresh Token** : Renouvellement automatique des tokens
-- **Abstraction ITokenCache** : Permet l'implémentation Redis/autre cache
+### Proxy HTTP
+- Réception de requêtes via `GET/POST/PUT/DELETE/PATCH`
+- Paramètre obligatoire `uri` pour définir l’URL upstream
+- Injection du token Bearer ou d’un header personnalisé
+- Transmission des headers et du corps de la requête
 
-### 3. Middleware d'Authentification
-- Valide les cookies de session
-- Injecte automatiquement les tokens Bearer dans les headers
-- Gère les rafraîchissements de token transparents
+### Audit et sécurité
+- Intégration d’un mécanisme d’audit via les extensions infrastructure
+- Authentification basée sur un header et des rôles configurés via `RoleProvider`
+- Support du refresh token si l’IDP le fournit
 
-### 4. Proxy HTTP
-- Route les requêtes vers un serveur upstream
-- Transmet automatiquement le token d'authentification
-- Préserve les headers et le contexte de la requête
+## Prérequis
 
-## Setup & Configuration
+- .NET SDK compatible avec la solution
+- Un fournisseur OIDC accessible (Keycloak, Azure AD, Auth0, etc.)
+- Optionnellement Docker si vous souhaitez tester localement avec Keycloak
 
-### Prérequis
-- .NET 9 SDK
-- Un IDP OIDC configuré (ex: Keycloak local)
-
-### Installation
+## Démarrage rapide
 
 ```bash
-# Cloner le projet
 cd /Users/taiebma/dev/proxyAPI
-
-# Restaurer les dépendances
 dotnet restore
-
-# Compiler
 dotnet build
 ```
 
-### Configuration
-
-#### 1. IDP Local (Keycloak)
-
-Pour développement local avec Keycloak :
+Puis lancer l’application :
 
 ```bash
-docker run -p 8080:8080 \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
-  quay.io/keycloak/keycloak:latest \
-  start-dev
-```
-
-Puis créer un client OAuth dans le realm `master` :
-- Client ID: `insomnia-proxy`
-- Client Secret: `local-dev-secret`
-- Redirect URIs: `http://localhost:5000/auth/callback`
-- Valid post logout redirect URIs: `http://localhost:5000`
-
-#### 2. Fichier appsettings.Development.json
-
-```json
-{
-  "Oidc": {
-    "Authority": "http://localhost:8080/realms/master",
-    "ClientId": "insomnia-proxy",
-    "ClientSecret": "local-dev-secret",
-    "AuthorizationEndpoint": "http://localhost:8080/realms/master/protocol/openid-connect/auth",
-    "TokenEndpoint": "http://localhost:8080/realms/master/protocol/openid-connect/token",
-    "RedirectUri": "http://localhost:5000/auth/callback"
-  }
-}
-```
-
-### Démarrage
-
-```bash
-# Depuis ProxyAPI.Presentation
 cd ProxyAPI.Presentation
 dotnet run
 ```
 
-L'application démarre sur `http://localhost:5000`
+L’application démarre habituellement sur `http://localhost:5000` et peut aussi exposer `https://localhost:5001` selon la configuration de développement.
 
-## Utilisation avec Insomnia
+## Configuration
 
-### 1. Démarrer l'authentification
+La configuration principale se trouve dans :
 
-```bash
-curl http://localhost:5000/api/auth/login
-```
+- [ProxyAPI.Presentation/appsettings.json](ProxyAPI.Presentation/appsettings.json)
+- [ProxyAPI.Presentation/appsettings.Development.json](ProxyAPI.Presentation/appsettings.Development.json)
 
-Réponse :
-```json
-{
-  "url": "http://localhost:8080/realms/master/protocol/openid-connect/auth?...",
-  "state": "...",
-  "sessionId": "..."
-}
-```
+Les sections importantes sont :
 
-Ouvrir l'URL dans un navigateur et se connecter.
+- `Oidc` : endpoints d’autorisation et de token
+- `OAuth` : configuration complémentaire pour les clients OAuth
+- `Cache` : expiration des objets cache
+- `RoleProvider` : rôles et mapping utilisateur
 
-### 2. Callback (automatique)
+## Endpoints principaux
 
-Après connexion réussie, l'IDP redirige vers `/api/auth/callback` avec un code d'autorisation.
+- `GET /api/auth/login` : démarre le login OAuth
+- `GET /api/auth/callback` : réception du code d’autorisation
+- `POST /api/auth/logout` : supprimer le contexte client
+- `GET /api/auth/status` : vérifier si la session est toujours valide
+- `GET|POST|PUT|DELETE|PATCH /api/proxy/` : proxy vers une URL upstream via le paramètre `uri`
 
-Le proxy :
-1. Valide le code
-2. L'échange contre un token
-3. Le stocke en cache
-4. Retourne un cookie de session
+## Exemple de flux
 
-### 3. Requêtes Proxifiées
+1. L’utilisateur appelle `GET /api/auth/login`
+2. Le proxy génère un `state` et enregistre une session temporaire
+3. L’URL d’autorisation est renvoyée à l’utilisateur
+4. Après connexion, l’IDP redirige vers `GET /api/auth/callback`
+5. Le proxy échange le code contre un token
+6. Le token est stocké en cache et lié à un `clientId`
+7. Le client peut ensuite appeler le proxy avec le header `X-ProxyAPI-ClientId`
+8. Le proxy récupère le token et l’injecte dans la requête vers l’upstream
 
-Utiliser le proxy pour accéder aux endpoints protégés :
+## Tests
 
-```bash
-curl -b "X-ProxyAPI-ClientId=<client-id>" \
-  http://localhost:5000/api/proxy/api/users
-```
-
-Le proxy :
-- Valide le cookie de session
-- Injecte le token Bearer
-- Forwarder vers le serveur upstream
-- Retourne la réponse
-
-### 4. Vérifier le statut
+Les tests sont organisés sous [ProxyAPI.Tests](ProxyAPI.Tests) et peuvent être exécutés avec :
 
 ```bash
-curl -b "X-ProxyAPI-ClientId=<client-id>" \
-  http://localhost:5000/api/auth/status
-```
-
-## Tests Unitaires
-
-```bash
-# Lancer tous les tests
 dotnet test
-
-# Test spécifique
-dotnet test --filter MemoryTokenCacheTests
-
-# Avec couverture de code
-dotnet test /p:CollectCoverage=true
 ```
 
-### Couverture
+## Notes de conception
 
-- **Domain Tests**: Validation value objects, entités
-- **Application Tests**: Services d'authentification, orchestration (Mocks)
-- **Infrastructure Tests**: Cache memory, TTL, expiration
+Le projet s’appuie sur une architecture modulaire, avec une séparation claire entre :
 
-## Extension & Customisation
+- la logique métier pure,
+- les adaptations techniques,
+- l’exposition HTTP,
+- et les extension points fournis par les modules infrastructure.
 
-### Implémenter un Cache Redis
+Cette approche facilite l’ajout de nouveaux fournisseurs OIDC, de nouveaux mécanismes de cache ou de nouveaux modules d’audit sans réécrire le cœur du service.
 
-```csharp
-public class RedisTokenCache : ITokenCache
-{
-    private readonly IConnectionMultiplexer _redis;
-    
-    public void Set(ClientId clientId, TokenValue token)
-    {
-        var json = JsonSerializer.Serialize(token);
-        _redis.GetDatabase().StringSet(
-            clientId.Value, 
-            json, 
-            token.ExpiresAt - DateTime.UtcNow
-        );
-    }
-    
-    // Implémenter les autres méthodes...
-}
-```
+## Documentation complémentaire
 
-Puis dans `DependencyInjectionExtensions.cs` :
-```csharp
-services.AddSingleton<ITokenCache, RedisTokenCache>();
-```
-
-### Implémenter un IDP Custom
-
-Créer une nouvelle classe implémentant `IOidcClient` :
-
-```csharp
-public class CustomOAuthClient : IOidcClient
-{
-    // Implémenter les méthodes du contrat
-}
-```
-
-## Architecture DDD - Explications
-
-### 1. Domain Layer
-- **Pas de dépendances externes** (HttpClient, DB)
-- Contient la logique métier pure
-- Entités et Value Objects immutables
-- Exceptions custom
-
-### 2. Application Layer
-- Orchestre les use cases
-- Utilise les abstractions du Domain (ITokenCache, IOidcClient)
-- Convertit les DTOs
-- Aucun détail d'implémentation
-
-### 3. Infrastructure Layer
-- Implémente les interfaces du Domain
-- Gère les détails externes (HTTP, cache, DB)
-- Aucune logique métier
-
-### 4. Presentation Layer
-- Controllers, middleware
-- Convertit les requêtes HTTP en DTOs
-- Injection des dépendances
-- Configuration ASP.NET Core
-
-## Workflow Complet
-
-```
-1. [Insomnia] → GET /api/auth/login
-2. [Proxy] → Génère State + SessionId
-3. [Proxy] → Retourne URL IDP
-4. [Insomnia] → Utilisateur clique → IDP login
-5. [IDP] → Redirige vers /api/auth/callback?code=...
-6. [Proxy] → Échange code → Token
-7. [Proxy] → Stocke en cache
-8. [Proxy] → Cookie de session
-9. [Insomnia] → GET /api/proxy/api/users (+ cookie)
-10. [Middleware] → Valide cookie
-11. [Middleware] → Récupère token du cache
-12. [Middleware] → Injecte Bearer
-13. [Proxy] → Forward vers upstream
-14. [Upstream] → Répond
-15. [Insomnia] → Reçoit réponse
-```
-
-## Troubleshooting
-
-### Le cookie n'est pas créé
-- Vérifier que `Secure=true` (HTTPS) n'est pas trop strict en développement
-- Vérifier `SameSite` settings en configuration
-
-### Token expiration
-- Implémenter la logique de refresh_token
-- Configurer le TTL dans `appsettings.json`
-
-### IDP connection error
-- Vérifier les endpoints OIDC
-- Tester : `curl {Authority}/.well-known/openid-configuration`
-- Vérifier les credentials ClientId/ClientSecret
-
-## Licences
-
-Ce projet utilise :
-- xUnit, Moq, FluentAssertions (tests)
-- IdentityModel (JWT parsing)
-- ASP.NET Core (framework)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [GETTING_STARTED.md](GETTING_STARTED.md)
+- [SUMMARY.md](SUMMARY.md)

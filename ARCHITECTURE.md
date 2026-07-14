@@ -1,267 +1,98 @@
-# Architecture DDD - ProxyAPI
+# Architecture actuelle de ProxyAPI
 
-## Vue d'ensemble
+## Vue d’ensemble
 
-ProxyAPI est architecturé selon les principes du **Domain-Driven Design (DDD)** avec une séparation explicite des responsabilités en 4 couches.
+ProxyAPI est une solution ASP.NET Core orientée OAuth/OIDC. Son objectif est de permettre à un client externe d’initier une authentification, de récupérer un token et d’utiliser ce token pour proxyfier des requêtes vers un service upstream.
 
-## Les 4 Couches
+## Structure du code
 
-### 1. Domain Layer (`ProxyAPI.Domain`)
+Le projet est organisé autour de trois niveaux fonctionnels :
 
-**Responsabilité** : Modéliser la logique métier pure, indépendante de toute infrastructure.
+### 1. Domaine (`ProxyAPI.Domain`)
 
-**Contenu** :
-- **Entities** : `Client`, `AuthenticationSession`
-- **Value Objects** : `ClientId`, `TokenValue`
-- **Interfaces** : `ITokenCache`, `IOidcClient` (abstractions métier)
-- **Exceptions** : `DomainException` et dérivées
+Ce niveau contient la logique métier et les abstractions utilisées par les autres couches.
 
-**Principes** :
-- ✅ Pas de dépendances externes (HttpClient, EF, etc.)
-- ✅ Pas de configuration
-- ✅ Logique métier 100% testable
-- ✅ Immutabilité des value objects
+Composants principaux :
+- `ProxyAPIAuthenticationService` : orchestration du flow OAuth
+- `SessionManager` : gestion des sessions OAuth temporaires
+- `IProxyAPIAuthenticationService` et `ISessionManager` : contrats métier
+- DTOs de domaine : `AuthorizationUrlResponse`, `AuthorizationCodeRequest`, `ClientContext`
 
-**Exemple** : `TokenValue` encapsule la logique de validation d'expiration du token.
+Responsabilités :
+- valider les étapes du flow OAuth,
+- gérer les sessions de courte durée,
+- préparer les contextes clients à partir des tokens récupérés.
 
-### 2. Application Layer (`ProxyAPI.Application`)
+### 2. Infrastructure (`ProxyAPI.Infrastructure`)
 
-**Responsabilité** : Orchestrer les use cases en utilisant les abstractions du domain.
+Ce niveau implémente les détails techniques nécessaires au fonctionnement du service.
 
-**Contenu** :
-- **Services** : `AuthenticationService`, `OAuthFlowService`
-- **DTOs** : `TokenResponse`, `ClientContext`, `AuthorizationUrlResponse`
-- **Interfaces** : `IAuthenticationService` (contrat application)
+Composants principaux :
+- `OidcClient` : appels HTTP vers l’IDP pour l’authorization code flow, le refresh token et l’échange de code
+- `MemoryCacheService<T>` : stockage des tokens et sessions en mémoire
+- `OIdcAuthSettings` et `OAuthSettings` : configuration OIDC/OAuth
+- extensions d’infrastructure : audit, logging, cache, service discovery, authz
 
-**Principes** :
-- ✅ Utilise uniquement les abstractions du Domain (interfaces)
-- ✅ Pas d'implémentations concrètes (except services)
-- ✅ Convertit les requêtes en use cases métier
-- ✅ Retourne des résultats (DTOs)
+Responsabilités :
+- communiquer avec l’IDP,
+- stocker les tokens avec un TTL,
+- exposer des services techniques réutilisables.
 
-**Exemple** : `AuthenticationService.HandleCallbackAsync()` orchestre :
-1. Validation du state (Domain)
-2. Échange du code (appel IOidcClient)
-3. Stockage en cache (appel ITokenCache)
-4. Retour du contexte client (DTO)
+### 3. Présentation (`ProxyAPI.Presentation`)
 
-### 3. Infrastructure Layer (`ProxyAPI.Infrastructure`)
+Cette couche expose le service via HTTP et compose les dépendances.
 
-**Responsabilité** : Implémenter les interfaces métier avec les détails techniques externes.
+Composants principaux :
+- `AuthController` : endpoints d’authentification
+- `ProxyController` : proxy HTTP vers un service upstream
+- `AuthenticationMiddleware` : logique transverse d’authentification
+- `DependencyInjectionExtensions` : enregistrement des services et configuration du pipeline
 
-**Contenu** :
-- **Cache** : `MemoryTokenCache` (impl. `ITokenCache`)
-- **OAuth** : `OidcClient` (impl. `IOidcClient`)
-- **Configuration** : `OAuthSettings`, `CacheSettings`
+Responsabilités :
+- convertir les requêtes HTTP en opérations métier,
+- gérer les cookies de session,
+- transmettre les tokens aux appels upstream.
 
-**Principes** :
-- ✅ Implémente les interfaces du Domain
-- ✅ Gère les détails externes (HttpClient, collection concurrentes)
-- ✅ Pas d'appels directs à Services Application
+## Flux d’authentification
 
-**Exemple** : `MemoryTokenCache` :
-- Thread-safe (ConcurrentDictionary)
-- TTL automatique
-- Éviction des entrées expirées
+1. Le client appelle `GET /api/auth/login`
+2. Le service crée un `state` et une session temporaire
+3. L’URL d’autorisation est générée et renvoyée
+4. L’utilisateur se connecte chez l’IDP
+5. L’IDP redirige vers `GET /api/auth/callback`
+6. Le service échange le code contre un token
+7. Le token est stocké en cache et associé à un `clientId`
+8. Le client reçoit un identifiant `X-ProxyAPI-ClientId` pour les appels suivants qu'il pourra mettre dans ses headers
 
-### 4. Presentation Layer (`ProxyAPI.Presentation`)
+## Flux de proxy
 
-**Responsabilité** : Exposer les use cases via HTTP et configurer l'injection de dépendances.
+1. Le client appelle `GET|POST|PUT|DELETE|PATCH /api/proxy/`
+2. Le contrôleur vérifie la présence du header `X-ProxyAPI-ClientId`
+3. Le contexte client est récupéré ou rafraîchi si nécessaire
+4. Le token d’accès est injecté dans la requête
+5. La requête est envoyée vers l’URL fournie via le paramètre `uri`
+6. La réponse est renvoyée au client
 
-**Contenu** :
-- **Controllers** : `AuthController`, `ProxyController`
-- **Middleware** : `AuthenticationMiddleware`
-- **Extensions** : `DependencyInjectionExtensions`
-- **Configuration** : `appsettings.json`
+## Décisions architecturales
 
-**Principes** :
-- ✅ Convertit HTTP → DTOs → Services
-- ✅ Gère les cookies, headers HTTP
-- ✅ Injection de dépendances centralisée
-- ✅ Pas de logique métier
+### Séparation des responsabilités
+La logique métier ne dépend pas directement des détails HTTP ou OIDC. Les composants techniques sont encapsulés dans l’infrastructure.
 
-**Exemple** : `AuthController.Login()` :
-1. Reçoit requête HTTP
-2. Appelle `IAuthenticationService.GetAuthorizationUrlAsync()`
-3. Retourne JSON + cookie
+### Stockage en mémoire
+Les sessions et les tokens sont conservés en mémoire pour simplifier le fonctionnement local et éviter une dépendance à une base de données.
 
-## Flux de Données
+### Extension par modules
+Les projets d’extension comme `ProxyAPI.Infrastructure.ExtAuditBdd`, `ProxyAPI.Infrastructure.ExtAuthz`, `ProxyAPI.Infrastructure.ExtLogging` et `ProxyAPI.Infrastructure.ExtSdCoac` permettent d’ajouter des fonctionnalités transverses sans modifier le cœur du service.
 
-```
-HTTP Request
-    ↓
-Controller (Presentation)
-    ↓ Convertit en DTO
-Service (Application)
-    ↓ Orchestre
-Domain Entities/Value Objects
-    ↓ Appelle abstractions
-Infrastructure Implementations
-    ↓ Détails externes (HTTP, cache)
-HTTP/Cache operations
-    ↓
-Response to Client
-```
+## Points d’attention
 
-## Avantages de cette Architecture
+- La configuration OIDC est centralisée dans [ProxyAPI.Presentation/appsettings.json](ProxyAPI.Presentation/appsettings.json) et [ProxyAPI.Presentation/appsettings.Development.json](ProxyAPI.Presentation/appsettings.Development.json).
+- Les cookies de session sont utilisés pour maintenir l’état côté client.
+- Le proxy dépend fortement de la valeur du paramètre `uri` pour déterminer la destination upstream.
 
-### 1. Testabilité
-- **Domain** : 100% testable, aucune dépendance externe
-- **Application** : Testable avec Mocks (Moq)
-- **Infrastructure** : Tests d'intégration
-- **Presentation** : WebApplicationFactory
+## Évolutions possibles
 
-### 2. Maintenabilité
-- Logique métier centralisée dans Domain
-- Facile de localiser où changer
-- Couplage faible entre couches
-
-### 3. Extensibilité
-- Changer le cache (Redis) : créer nouvelle classe `ITokenCache`
-- Ajouter nouvel IDP : créer nouvelle classe `IOidcClient`
-- Ajouter nouveau transport : créer nouveau contrôleur
-
-### 4. Réutilisabilité
-- Commandes console peuvent utiliser `AuthenticationService`
-- Queue/Background jobs peuvent utiliser `ITokenCache`
-- Logic indépendante d'HTTP
-
-## Exemple : Ajouter un Cache Redis
-
-1. **Créer l'implémentation** (Infrastructure) :
-```csharp
-public class RedisTokenCache : ITokenCache { ... }
-```
-
-2. **Enregistrer dans DI** (Presentation) :
-```csharp
-services.AddSingleton<ITokenCache>(sp =>
-    new RedisTokenCache(connectionString));
-```
-
-3. **Application + Domain inchangés** ✅
-
-## Structure des Fichiers
-
-```
-ProxyAPI.Domain/
-├── Entities/
-│   ├── Client.cs               # Entité client
-│   ├── AuthenticationSession.cs # Session OAuth
-├── ValueObjects/
-│   ├── ClientId.cs             # ID immuable
-│   └── TokenValue.cs           # Token immuable
-├── Interfaces/
-│   ├── ITokenCache.cs          # Abstraction cache
-│   └── IOidcClient.cs         # Abstraction OAuth
-└── Exceptions/
-    └── DomainException.cs      # Exceptions métier
-
-ProxyAPI.Application/
-├── Services/
-│   └── AuthenticationService.cs # Orchestration
-├── DTOs/
-│   └── OAuthDtos.cs            # Data Transfer Objects
-└── Interfaces/
-    └── IAuthenticationService.cs # Contrat service
-
-ProxyAPI.Infrastructure/
-├── Cache/
-│   └── MemoryTokenCache.cs     # Impl. cache mémoire
-├── OAuth/
-│   └── OidcClient.cs           # Impl. OIDC
-└── Configuration/
-    └── OAuthSettings.cs         # Config settings
-
-ProxyAPI.Presentation/
-├── Controllers/
-│   ├── AuthController.cs       # API Auth
-│   └── ProxyController.cs      # API Proxy
-├── Middleware/
-│   └── AuthenticationMiddleware.cs # Auth middleware
-└── Extensions/
-    └── DependencyInjectionExtensions.cs # DI setup
-```
-
-## Principes SOLID Appliqués
-
-### Single Responsibility (S)
-- `AuthenticationService` : orchestration seulement
-- `MemoryTokenCache` : cache seulement
-- `AuthController` : HTTP seulement
-
-### Open/Closed (O)
-- Ajouter nouvel IDP : nouvelle classe `IOidcClient`
-- Pas modifier code existant
-
-### Liskov Substitution (L)
-- `RedisTokenCache` remplace `MemoryTokenCache` sans casse
-- Respecte contrat `ITokenCache`
-
-### Interface Segregation (I)
-- `ITokenCache` : 5 méthodes ciblées
-- `IOidcClient` : 3 méthodes ciblées
-- Pas de "God Interface"
-
-### Dependency Inversion (D)
-- Controllers → IAuthenticationService (abstraction)
-- Pas de dépendances directes aux implémentations
-
-## Décisions Architecturales
-
-### 1. Pourquoi Abstractions dans Domain ?
-Les interfaces `ITokenCache` et `IOidcClient` sont dans Domain (pas Infrastructure) car :
-- Elles définissent les contrats métier
-- Le Domain les utilise conceptuellement
-- Les implémentations sont interchangeables
-
-### 2. Pourquoi Value Objects ?
-`ClientId` et `TokenValue` sont des value objects car :
-- Logique d'égalité basée sur la valeur (pas l'identité)
-- Immuables et sûrs par construction
-- Encapsulent la validation
-
-### 3. Pourquoi Session Storage en Memory ?
-`AuthenticationSession` stockée en dictionnaire (pas cache) car :
-- Durée très courte (10 minutes)
-- Peu de données
-- Perdu au redémarrage app (acceptable)
-
-### 4. Pourquoi Middleware vs Filter ?
-Middleware au lieu de Filter car :
-- Contrôle total du pipeline
-- Peut short-circuit la requête (401)
-- Accès direct au contexte HTTP
-
-## Évolution Future
-
-### Potential Improvements
-1. **Add Specification Pattern** for querying clients
-2. **Add Repository Pattern** if adding database
-3. **Add CQRS** if read/write separation needed
-4. **Add Event Sourcing** for audit trails
-5. **Add Domain Events** for notifications
-
-### Migration vers BD
-```csharp
-// Add to Domain
-public interface IClientRepository
-{
-    Task<Client?> GetByIdAsync(ClientId id);
-    Task SaveAsync(Client client);
-}
-
-// Implement in Infrastructure
-public class SqlClientRepository : IClientRepository { ... }
-
-// Register in DI
-services.AddScoped<IClientRepository, SqlClientRepository>();
-```
-
-## Conclusion
-
-Cette architecture DDD offre :
-- ✅ Logique métier claire et testable
-- ✅ Couches bien séparées et responsabilités clairement définies
-- ✅ Facile à étendre et maintenir
-- ✅ Prête pour l'évolution (DB, events, etc.)
+- remplacer le stockage en mémoire par Redis ou une base de données,
+- ajouter des tests d’intégration autour des contrôleurs,
+- sécuriser davantage le proxy avec rate limiting et validation stricte des URLs,
+- externaliser la configuration de l’IDP et la politique de rôles.
