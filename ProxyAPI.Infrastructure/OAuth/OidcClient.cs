@@ -119,7 +119,7 @@ public class OidcClient : IOidcClient
             var json = await response.Content.ReadAsStringAsync();
             var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (tokenResponse?.AccessToken == null)
+            if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
                 throw new OAuthException("Invalid token response from IDP.");
 
             var handler = new JwtSecurityTokenHandler();

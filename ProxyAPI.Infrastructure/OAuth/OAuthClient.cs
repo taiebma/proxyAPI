@@ -56,7 +56,7 @@ public class OAuthClient : IOAuthClient
         var json = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        if (string.IsNullOrEmpty(tokenResponse?.AccessToken))
+        if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
             throw new OAuthException("Invalid token response from IDP.");
 
         var handler = new JwtSecurityTokenHandler();
@@ -94,7 +94,7 @@ public class OAuthClient : IOAuthClient
             var json = await response.Content.ReadAsStringAsync();
             var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (tokenResponse?.AccessToken == null)
+            if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
                 throw new OAuthException("Invalid token response from IDP.");
 
             var expiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn);

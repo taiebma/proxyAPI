@@ -85,7 +85,7 @@ public class InfrastructureComponentTests
     }
 
     [Fact]
-    public async Task OAuthClient_RefreshToken_WithInvalidResponse_ThrowsArgumentException()
+    public async Task OAuthClient_RefreshToken_WithInvalidResponse_ThrowsOAuthException()
     {
         var httpClient = new HttpClient(new StubHttpHandler("{}", HttpStatusCode.OK));
         var settings = new OAuthSettings
@@ -99,7 +99,7 @@ public class InfrastructureComponentTests
         var client = new OAuthClient(httpClient, settings);
 
         await FluentActions.Invoking(() => client.RefreshTokenAsync("refresh-token"))
-            .Should().ThrowAsync<ArgumentException>()
+            .Should().ThrowAsync<OAuthException>()
             .WithMessage("Invalid token response from IDP.");
     }
 
